@@ -34,9 +34,15 @@ This program uses a **neural network** - a type of machine learning inspired by 
 ## Prerequisites
 
 ### Required Software
-- **Go 1.19+**: The programming language this is written in
-- **Python 3.8+**: For the plotting service that generates training charts
-- **Git**: To clone the repository
+- **Go 1.23+**: The programming language this is written in
+- **Python 3.13+**: For the plotting sidecar service that generates training charts
+- **Git**: To clone the repositories
+
+### Required Services
+- **Plotting Sidecar** (optional): For generating training visualization charts
+  - Repository: https://github.com/tsawler/graymatter-sidecar
+  - Language: Python (Flask-based web service)
+  - Purpose: Creates plots of training progress, network architecture, confusion matrices
 
 ### Required Go Module
 This program depends on the `graymatter-lite` neural network library:
@@ -111,14 +117,21 @@ go build
 ```
 
 ### 2. Set Up Plotting Service (Optional but Recommended)
-The program can generate helpful training visualizations if you set up the plotting service:
+The program can generate helpful training visualizations using the separate plotting sidecar service:
 
 ```bash
-# Install Python dependencies (matplotlib, flask, etc.)
-pip install -r plotting-requirements.txt  # If provided
+# Clone the plotting sidecar service
+git clone https://github.com/tsawler/graymatter-sidecar
+cd graymatter-sidecar
+
+# Install Python dependencies
+pip install -r requirements.txt
 
 # Start the plotting service on port 8080
-python plotting-service.py &
+python app.py &
+
+# Return to your character recognition project
+cd ../character-recognition
 ```
 
 If you skip this step, disable plotting in the config:
@@ -313,8 +326,9 @@ file data/upper/A/*.png
 # Check if plotting service is running
 curl http://localhost:8080/health
 
-# Start plotting service
-python plotting-service.py &
+# If not running, start the sidecar service
+cd path/to/graymatter-sidecar
+python app.py &
 ```
 
 **Problem**: Out of memory during training
@@ -427,7 +441,7 @@ This project demonstrates fundamental machine learning concepts in Go. Areas for
 
 ## License
 
-MIT license.
+[Your license here]
 
 ---
 
