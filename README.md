@@ -441,7 +441,7 @@ This project demonstrates fundamental machine learning concepts in Go. Areas for
 
 ## License
 
-[Your license here]
+MIT license. See the [LICENSE](LICENSE.md) file for more details.
 
 ---
 
