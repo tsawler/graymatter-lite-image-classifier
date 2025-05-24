@@ -77,10 +77,3 @@ func DemoEvaluation() {
 	
 	fmt.Printf("Test accuracy: %.2f%%\n", accuracy*100)
 }
-
-// Uncomment the demo functions you want to run in main()
-// func main() {
-//     DemoTraining()
-//     DemoInference()
-//     DemoEvaluation()
-// }
