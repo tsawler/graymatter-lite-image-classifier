@@ -244,7 +244,7 @@ func (ic *ImageClassifier) imageToPixels(img image.Image) []float64 {
 			gray := (RedLuminance*float64(r) + GreenLuminance*float64(g) + BlueLuminance*float64(b)) / RGBAMax
 
 			pixelIndex := (y-bounds.Min.Y)*width + (x-bounds.Min.X)
-			pixels[pixelIndex] = gray
+			pixels[pixelIndex] = 1.0 - gray
 		}
 	}
 
