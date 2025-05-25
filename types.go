@@ -14,6 +14,11 @@ import "github.com/tsawler/graymatter-lite"
 // 1. It matches how humans naturally categorize characters
 // 2. It makes the file system organization intuitive
 // 3. It allows us to process each group with the same logic
+//
+// NOTE ON PUNCTUATION:
+// Punctuation marks are handled separately from this ClassGroup structure
+// because they require special directory name mapping (e.g., "asterisk" → "*").
+// See the PunctuationDirToChar mapping in constants.go for punctuation handling.
 type ClassGroup struct {
 	// DirName: The subdirectory name under the main data directory
 	// For example, "upper" for uppercase letters, "lower" for lowercase
@@ -29,6 +34,10 @@ type ClassGroup struct {
 	//   digits/    <- DirName = "digits"
 	//     0/
 	//     1/
+	//   punctuation/ <- Handled separately due to special naming requirements
+	//     asterisk/  <- Directory name != actual character
+	//     dot/
+	//     question/
 	DirName string
 
 	// StartChar, EndChar: The range of characters in this group
@@ -43,6 +52,10 @@ type ClassGroup struct {
 	// Instead of listing every character individually, we can use Go's character
 	// arithmetic to iterate through ranges. This is cleaner and less error-prone
 	// than manually specifying every character.
+	//
+	// PUNCTUATION LIMITATION:
+	// Punctuation marks don't form a continuous Unicode range and many can't be
+	// used as directory names, so they're handled with a separate mapping system.
 	StartChar, EndChar rune
 }
 
@@ -55,6 +68,10 @@ type ClassGroup struct {
 //
 // The neural network learns by studying thousands of these input-output pairs,
 // gradually adjusting its internal parameters to make better predictions.
+//
+// EXPANDED FOR 94 CLASSES:
+// This structure now handles all types of characters including punctuation marks,
+// making it suitable for comprehensive character recognition tasks.
 type ImageData struct {
 	// Pixels: The actual image data converted to a flat array of grayscale values
 	//
@@ -71,29 +88,36 @@ type ImageData struct {
 	Pixels []float64
 
 	// Label: The human-readable character this image represents
-	// Examples: "A", "b", "7", etc.
+	// EXPANDED EXAMPLES: "A", "b", "7", "*", "?", "!", etc.
 	//
 	// GROUND TRUTH:
 	// This is the "correct answer" that we want the network to learn to predict.
 	// The quality of these labels is crucial - if labels are wrong, the network
 	// will learn wrong associations. In our case, labels come from the directory
-	// structure: images in "data/upper/A/" are all labeled as "A".
+	// structure and punctuation mapping:
+	// - Images in "data/upper/A/" are labeled as "A"
+	// - Images in "data/punctuation/asterisk/" are labeled as "*"
+	//
+	// PUNCTUATION LABELS:
+	// For punctuation, the label is the actual character ("*", "?", "!") even though
+	// the directory name might be descriptive ("asterisk", "question", "exclamation").
 	Label string
 
 	// ClassIndex: The numerical index corresponding to this character class
 	// This is what the neural network actually works with during training
 	//
-	// STRING TO NUMBER CONVERSION:
+	// EXPANDED STRING TO NUMBER CONVERSION:
 	// Neural networks output numbers, not strings. We convert string labels
 	// to numerical indices using our ClassMapping:
 	// - "A" → 0, "B" → 1, ..., "Z" → 25
 	// - "a" → 26, "b" → 27, ..., "z" → 51  
 	// - "0" → 52, "1" → 53, ..., "9" → 61
+	// - "*" → 62, "?" → 63, ..., "/" → 93 (punctuation marks)
 	//
 	// ONE-HOT ENCODING:
 	// During training, this index gets converted to a "one-hot" vector:
-	// ClassIndex 0 → [1, 0, 0, 0, 0, ...] (62 elements, only first is 1)
-	// ClassIndex 1 → [0, 1, 0, 0, 0, ...] (62 elements, only second is 1)
+	// ClassIndex 0 → [1, 0, 0, 0, 0, ...] (94 elements, only first is 1)
+	// ClassIndex 62 → [0, 0, ..., 1, 0, ...] (94 elements, only 63rd is 1)
 	// This format is what the neural network's output layer expects.
 	ClassIndex int
 }
@@ -112,10 +136,18 @@ type ImageData struct {
 // This struct acts as a "facade" that hides the complexity of neural networks
 // behind a simple interface. Users don't need to understand matrix operations,
 // backpropagation, or activation functions - they just call Train() and Predict().
+//
+// ENHANCED FOR 94-CLASS RECOGNITION:
+// Now capable of recognizing the full range of printable ASCII characters,
+// making it suitable for real-world document processing applications.
 type ImageClassifier struct {
 	// config: All the hyperparameters and settings for this classifier
 	// This includes network architecture, file paths, training parameters, etc.
 	// By storing this in the struct, all methods have access to the same settings.
+	//
+	// UPDATED CONFIGURATION:
+	// The config now specifies 94 output classes to accommodate the expanded
+	// character set including punctuation marks.
 	config *Config
 
 	// network: The actual neural network that does the learning and prediction
@@ -126,6 +158,11 @@ type ImageClassifier struct {
 	// The network is private (lowercase field name) because external code
 	// shouldn't manipulate it directly. All interactions should go through
 	// our wrapper methods like Train() and Predict().
+	//
+	// 94-CLASS NETWORK:
+	// The network now has 94 output neurons (one per character class) instead
+	// of the original 62, allowing it to distinguish between all letters,
+	// digits, and common punctuation marks.
 	network *graymatter.Network
 }
 
@@ -141,6 +178,10 @@ type ImageClassifier struct {
 // 1. Network creation requires knowing the exact input/output dimensions
 // 2. The network might be loaded from a saved file instead of created fresh
 // 3. It's cleaner to separate object creation from network initialization
+//
+// CONFIGURATION VALIDATION:
+// The constructor ensures the config is properly set for 94-class recognition,
+// including appropriate output size and directory structure expectations.
 func NewImageClassifier(config *Config) *ImageClassifier {
 	return &ImageClassifier{config: config}
 }
@@ -158,8 +199,13 @@ func NewImageClassifier(config *Config) *ImageClassifier {
 // - Learned weights and biases (the "knowledge" the network acquired)
 // - Metadata about training (accuracy, hyperparameters, notes)
 //
+// COMPATIBILITY CONSIDERATIONS:
+// When loading a model, ensure it was trained on the same character set.
+// A model trained on 62 classes won't work properly with 94-class predictions,
+// and vice versa. The network architecture must match the expected input/output format.
+//
 // IMPORTANT: The loaded network must match the expected input/output format.
-// You can't load a model trained on 32×32 images and use it on 28×28 images!
+// You can't load a model trained on 62 classes and use it for 94-class prediction!
 func LoadModel(filename string) (*ImageClassifier, error) {
 	// Use the graymatter library to handle the low-level file loading
 	network, _, err := graymatter.LoadNetwork(filename)
@@ -201,6 +247,30 @@ func LoadModel(filename string) (*ImageClassifier, error) {
 // - Constructor takes configuration to ensure proper initialization
 // - Type safety through Go's strong typing system
 
+// 5. SCALABLE DESIGN:
+// - Easy to extend from 62 to 94 classes without breaking existing functionality
+// - Punctuation handling is additive, not disruptive
+// - Configuration-driven approach makes further expansion straightforward
+
+// PUNCTUATION-SPECIFIC DESIGN CONSIDERATIONS:
+
+// 1. SPECIAL CHARACTER HANDLING:
+// Some punctuation marks require special handling in file systems and URLs.
+// The design accommodates this through directory name mapping.
+
+// 2. VISUAL SIMILARITY CHALLENGES:
+// Punctuation marks like "." and "," are visually similar and may require
+// more sophisticated feature extraction or additional training data.
+
+// 3. CONTEXT INDEPENDENCE:
+// The classifier recognizes individual characters without context, which
+// can be challenging for punctuation that looks similar in isolation.
+
+// 4. EXTENSIBILITY:
+// The design makes it easy to add more punctuation marks or special characters
+// by extending the mapping tables and updating the configuration.
+
 // These design patterns make the code more maintainable, testable, and easier
 // to understand, which is especially important in machine learning where
-// debugging can be challenging.
+// debugging can be challenging. The expansion to 94 classes demonstrates
+// the flexibility and scalability of the original design.

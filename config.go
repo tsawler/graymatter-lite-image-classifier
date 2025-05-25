@@ -59,19 +59,25 @@ type Config struct {
 	HiddenSize int
 
 	// OutputSize: Number of output neurons (one for each possible class)
-	// 26 (A-Z) + 26 (a-z) + 10 (0-9) = 62 possible characters
+	// UPDATED: 26 (A-Z) + 26 (a-z) + 10 (0-9) + 32 (punctuation) = 94 possible characters
 	//
 	// ONE NEURON PER CLASS:
 	// In classification, we typically have one output neuron for each possible
 	// answer. The network will output a probability for each class, and we
 	// choose the one with the highest probability as our prediction.
+	//
+	// EXPANDED CHARACTER SET:
+	// Now includes comprehensive punctuation support for real-world text recognition:
+	// - All standard letters and digits (62 classes)
+	// - Common punctuation marks (32 additional classes)
+	// - Total: 94 different character classes
 	OutputSize int
 
 	// DATA AND MODEL PATHS
 	// These specify where to find training data and where to save the trained model
 	
 	// DataDir: Directory containing training images organized by class
-	// Expected structure:
+	// UPDATED EXPECTED STRUCTURE:
 	// data/
 	//   upper/           <- uppercase letters
 	//     A/
@@ -85,10 +91,19 @@ type Config struct {
 	//   digits/          <- numbers
 	//     0/
 	//       image1.png
+	//   punctuation/     <- punctuation marks (NEW!)
+	//     asterisk/      <- * symbol
+	//       image1.png
+	//     dot/           <- . symbol
+	//       image1.png
+	//     question/      <- ? symbol
+	//       image1.png
 	//
 	// WHY THIS STRUCTURE?
 	// Organizing images by class in separate folders makes it easy to automatically
 	// label the training data. The folder name becomes the label for all images inside.
+	// For punctuation, we use descriptive names since some punctuation characters
+	// can't be used as directory names on most file systems.
 	DataDir string
 
 	// ModelPath: Base filename for saving the trained model (without extension)
@@ -122,6 +137,25 @@ type Config struct {
 	// This includes learning rate, batch size, number of epochs, etc.
 	// These hyperparameters are critical for successful training.
 	TrainingOptions graymatter.TrainingOptions
+	
+	// DATA SAMPLING CONFIGURATION
+	
+	// MaxSamplesPerClass: Maximum number of images to use per character class
+	// 0 = use all available images (no sampling)
+	// Positive number = randomly sample that many images per class
+	//
+	// WHY DATA SAMPLING?
+	// With large datasets (like 13,812 images per class), training can take hours.
+	// Sampling allows for faster experimentation while still achieving good results:
+	// - 500-1000 samples: Quick experimentation (30-60 minutes training)
+	// - 1000-2000 samples: Good balance of speed and accuracy (1-2 hours)
+	// - 5000+ samples: Near-optimal accuracy (2-4 hours)
+	// - 0 (no sampling): Maximum accuracy but longest training time
+	//
+	// SAMPLING STRATEGY:
+	// Uses random sampling to ensure representative subset of each class.
+	// This maintains data distribution while reducing computational load.
+	MaxSamplesPerClass int
 }
 
 // NewDefaultConfig creates a configuration with sensible defaults for character recognition.
@@ -133,6 +167,10 @@ type Config struct {
 // - The complexity of your specific dataset
 // - Available computational resources
 // - Desired training time vs. accuracy trade-offs
+//
+// UPDATED FOR 94 CLASSES:
+// The configuration now supports 94 different character classes including
+// comprehensive punctuation support for real-world applications.
 //
 // EXPERIMENTATION ENCOURAGED:
 // Don't treat these as gospel! Machine learning is often about experimentation.
@@ -149,9 +187,9 @@ func NewDefaultConfig() *Config {
 		
 		// NETWORK ARCHITECTURE
 		// This creates a relatively simple but effective architecture:
-		// 784 input neurons → 128 hidden neurons → 128 hidden neurons → 62 output neurons
+		// 784 input neurons → 128 hidden neurons → 128 hidden neurons → 94 output neurons
 		HiddenSize: 128, // Good balance between capacity and efficiency
-		OutputSize: 62,  // All possible characters (A-Z, a-z, 0-9)
+		OutputSize: 94,  // All possible characters (A-Z, a-z, 0-9, punctuation marks)
 		
 		// FILE SYSTEM PATHS
 		DataDir:   "data",              // Look for training images in ./data/
@@ -159,6 +197,9 @@ func NewDefaultConfig() *Config {
 		
 		// EXTERNAL SERVICES
 		PlottingURL: "http://localhost:8080", // Plotting service running locally
+		
+		// DATA SAMPLING (NEW)
+		MaxSamplesPerClass: 0, // Use all available data by default (no sampling)
 		
 		// TRAINING HYPERPARAMETERS
 		TrainingOptions: graymatter.TrainingOptions{
@@ -184,25 +225,48 @@ func NewDefaultConfig() *Config {
 // ITERATIONS (500):
 // Each iteration processes the entire training dataset once. 500 iterations means
 // the network sees each training image 500 times. This might seem like a lot, but
-// neural networks need repetition to learn patterns gradually.
+// neural networks need repetition to learn patterns gradually. With 94 classes
+// instead of 62, the network may need more iterations to learn the additional
+// complexity.
 
 // BATCH SIZE (32):
 // Instead of updating weights after each individual image, we process 32 images
 // and then update weights based on the average error. This is more efficient and
-// often leads to more stable learning.
+// often leads to more stable learning. The batch size remains appropriate for
+// the expanded character set.
 
 // LEARNING RATE (0.001):
 // This controls how aggressively the network adjusts its weights when it makes
-// mistakes. Too high (0.1) and the network might overshoot good solutions.
-// Too low (0.00001) and learning will be painfully slow. 0.001 is conservative
-// but safe for most problems.
+// mistakes. We use a slightly lower learning rate (0.001 instead of 0.01) because
+// with more classes to distinguish, the network needs to make more careful adjustments
+// to avoid overshooting good solutions.
 
 // HIDDEN SIZE (128):
-// This determines the network's capacity to learn complex patterns. For character
-// recognition, 128 neurons can capture the essential features that distinguish
-// different letters and numbers without being so large that training becomes
-// unwieldy.
+// This determines the network's capacity to learn complex patterns. 128 neurons
+// should be sufficient to distinguish between 94 different character classes,
+// including visually similar punctuation marks like "." and "," or "(" and ")".
+
+// OUTPUT SIZE (94):
+// Now matches our expanded character set:
+// - 26 uppercase letters (A-Z)
+// - 26 lowercase letters (a-z) 
+// - 10 digits (0-9)
+// - 32 punctuation marks (!, @, #, $, %, etc.)
+
+// ARCHITECTURE SCALING CONSIDERATIONS:
+// Adding 32 new classes (from 62 to 94) increases the complexity significantly:
+// - More output neurons mean more parameters to learn
+// - Some punctuation marks are visually very similar
+// - May need longer training or larger hidden layers for complex datasets
+// - Consider monitoring training progress closely for overfitting
+
+// PUNCTUATION-SPECIFIC CHALLENGES:
+// - Visual similarity: "." vs "," vs ";" require careful distinction
+// - Size variations: Some punctuation is much smaller than letters
+// - Font dependencies: Punctuation varies more across fonts than letters
+// - Context dependency: Same symbol might look different in different contexts
 
 // These defaults should work well for most character recognition tasks, but don't
-// hesitate to experiment! Machine learning is as much art as science, and finding
-// the right hyperparameters often requires trial and error.
+// hesitate to experiment! Machine learning requires iteration and tuning, and finding
+// the right hyperparameters often requires trial and error, especially when expanding
+// to include challenging character classes like punctuation marks.

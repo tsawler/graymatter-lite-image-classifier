@@ -30,7 +30,7 @@ import (
 func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// STEP 1: Load and process the image file
 	// This applies the same preprocessing pipeline used during training
-	pixels, err := ic.loadAndProcessImage(imagePath)
+	pixels, err := ic.loadAndProcessImageForPrediction(imagePath)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to load image: %w", err)
 	}

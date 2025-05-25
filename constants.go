@@ -47,7 +47,7 @@ const (
 	RGBAMax = 65535.0
 )
 
-// ClassMapping maps class names (like "A", "b", "7") to numerical indices (0, 1, 2, ...).
+// ClassMapping maps class names (like "A", "b", "7", "*") to numerical indices (0, 1, 2, ...).
 // IndexToClass provides the reverse mapping from indices back to class names.
 //
 // WHY NUMERICAL INDICES?
@@ -56,12 +56,13 @@ const (
 // [0.95, 0.02, 0.01, 0.01, 0.01, ...] where each position corresponds to a class.
 // Position 0 might represent "A", position 1 might represent "B", etc.
 //
-// MAPPING STRATEGY:
+// UPDATED MAPPING STRATEGY:
 // We assign indices systematically:
 // - Uppercase A-Z get indices 0-25
 // - Lowercase a-z get indices 26-51  
 // - Digits 0-9 get indices 52-61
-// This gives us 62 total classes, which matches our network's output size.
+// - Punctuation marks get indices 62-93
+// This gives us 94 total classes, which matches our network's output size.
 //
 // CONSISTENCY IS CRITICAL:
 // The same mapping must be used during training (when we convert labels to indices)
@@ -71,10 +72,59 @@ const (
 var ClassMapping = generateClassMapping()
 var IndexToClass = make(map[int]string)
 
+// PunctuationDirToChar maps directory names to actual punctuation characters.
+//
+// WHY THIS MAPPING?
+// Some punctuation characters can't be used as directory names on most file systems:
+// - "/" is a path separator
+// - "?" has special meaning in some shells
+// - "*" is a wildcard character
+// - ":" has special meaning on Windows
+// - etc.
+//
+// So we use descriptive directory names and map them to the actual characters.
+// This keeps the file system organization clean while preserving the actual
+// character information needed for training.
+var PunctuationDirToChar = map[string]string{
+	"asterisk":   "*",  // * symbol
+	"backslash":  "\\", // \ symbol
+	"colon":      ":",  // : symbol
+	"dot":        ".",  // . symbol
+	"gt":         ">",  // > symbol
+	"lt":         "<",  // < symbol
+	"pipe":       "|",  // | symbol
+	"question":   "?",  // ? symbol
+	"quote":      "\"", // " symbol
+	"slash":      "/",  // / symbol
+	// Direct character mappings (these can be used as directory names)
+	"_":  "_",
+	"-":  "-",
+	",":  ",",
+	";":  ";",
+	"!":  "!",
+	"'":  "'",
+	"(":  "(",
+	")":  ")",
+	"[":  "[",
+	"]":  "]",
+	"{":  "{",
+	"}":  "}",
+	"@":  "@",
+	"&":  "&",
+	"#":  "#",
+	"%":  "%",
+	"`":  "`",
+	"^":  "^",
+	"+":  "+",
+	"=":  "=",
+	"~":  "~",
+	"$":  "$",
+}
+
 // generateClassMapping creates the mapping programmatically to avoid errors.
 //
 // WHY GENERATE PROGRAMMATICALLY?
-// Rather than manually typing out all 62 mappings (which would be error-prone),
+// Rather than manually typing out all 94 mappings (which would be error-prone),
 // we use Go's character arithmetic to generate them systematically. This ensures:
 // - No typos in the mapping
 // - Consistent ordering
@@ -84,6 +134,10 @@ var IndexToClass = make(map[int]string)
 // In Go, characters are just numbers (Unicode code points). 'A' is 65, 'B' is 66, etc.
 // We can loop from 'A' to 'Z' by incrementing the character value, which is much
 // cleaner than listing every character manually.
+//
+// UPDATED FOR PUNCTUATION:
+// Now we also handle punctuation marks by iterating through our predefined
+// mapping of directory names to actual characters.
 func generateClassMapping() map[string]int {
 	mapping := make(map[string]int)
 	index := 0
@@ -115,27 +169,48 @@ func generateClassMapping() map[string]int {
 		index++
 	}
 
+	// PUNCTUATION MARKS: → indices 62-93
+	// We iterate through our predefined punctuation mapping to ensure
+	// consistent ordering and proper character representation
+	//
+	// IMPORTANT: The order here determines the class indices, so we use
+	// a consistent iteration order by sorting the directory names
+	punctuationDirs := []string{
+		// Symbols that use their actual character as directory name
+		"!", "#", "$", "%", "&", "'", "(", ")", "+", ",", "-", ".", ":", ";", 
+		"=", "@", "[", "]", "^", "_", "`", "{", "}", "~",
+		// Symbols that use descriptive directory names
+		"asterisk", "backslash", "colon", "dot", "gt", "lt", "pipe", "question", "quote", "slash",
+	}
+
+	// Only map the directories that actually exist in our PunctuationDirToChar mapping
+	for _, dirName := range punctuationDirs {
+		if char, exists := PunctuationDirToChar[dirName]; exists {
+			mapping[char] = index
+			IndexToClass[index] = char
+			index++
+		}
+	}
+
 	return mapping
 }
 
 // EXAMPLE USAGE IN TRAINING:
-// When we load a training image from "data/upper/A/image1.png":
-// 1. We extract "A" from the file path as the label
-// 2. We look up ClassMapping["A"] to get index 0
-// 3. We create a one-hot vector [1, 0, 0, 0, ...] where position 0 is 1
+// When we load a training image from "data/punctuation/asterisk/image1.png":
+// 1. We extract "asterisk" from the directory name
+// 2. We look up PunctuationDirToChar["asterisk"] to get "*"
+// 3. We look up ClassMapping["*"] to get the index (e.g., 62)
+// 4. We create a one-hot vector where position 62 is 1
 
 // EXAMPLE USAGE IN PREDICTION:
-// When the network outputs probabilities [0.95, 0.02, 0.01, ...]:
-// 1. We find the highest probability is at index 0
-// 2. We look up IndexToClass[0] to get "A"
-// 3. We return "A" as the predicted character
+// When the network outputs probabilities with highest at index 62:
+// 1. We look up IndexToClass[62] to get "*"
+// 2. We return "*" as the predicted character
 
 // EXTENSIBILITY:
-// Adding new character classes is easy - just add them to this function.
-// For example, to add punctuation marks:
-//   for _, char := range []string{".", ",", "!", "?"} {
-//       mapping[char] = index
-//       IndexToClass[index] = char
-//       index++
-//   }
-// Just remember to update the network's OutputSize to match the new total!
+// Adding new punctuation marks is easy:
+// 1. Add the directory name and character to PunctuationDirToChar
+// 2. The generateClassMapping function will automatically include it
+// 3. Remember to update the network's OutputSize to match the new total!
+
+// TOTAL CLASSES: 26 + 26 + 10 + 32 = 94 characters

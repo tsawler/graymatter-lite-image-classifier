@@ -28,6 +28,10 @@ import (
 // - Training data (usually too large and often confidential)
 // - Training history (loss curves, intermediate checkpoints)
 // - Temporary training state (gradients, momentum, optimizer state)
+//
+// ENHANCED FOR 94-CLASS RECOGNITION:
+// Now supports saving models trained on the expanded character set including
+// comprehensive punctuation recognition capabilities.
 func (ic *ImageClassifier) SaveModel(filename string, description string) error {
 	// Validate that we have a trained model to save
 	if ic.network == nil {
@@ -54,7 +58,7 @@ func (ic *ImageClassifier) SaveModel(filename string, description string) error 
 		
 		// MODEL CHARACTERISTICS:
 		// Information that helps users understand the model's capabilities
-		Notes: fmt.Sprintf("Image classifier with %d classes", ic.config.OutputSize),
+		Notes: fmt.Sprintf("Enhanced character classifier with %d classes (A-Z, a-z, 0-9, punctuation)", ic.config.OutputSize),
 	}
 
 	// SAVE OPERATION:
@@ -78,6 +82,10 @@ func (ic *ImageClassifier) SaveModel(filename string, description string) error 
 // - Batch processing of images for classification
 // - Interactive applications where users upload images
 // - A/B testing different model versions
+//
+// COMPATIBILITY NOTE:
+// Ensure the loaded model matches your expected character set. A model trained
+// on 62 classes won't work properly for 94-class recognition, and vice versa.
 func LoadModelForInference(filename string) (*ImageClassifier, *graymatter.NetworkMetadata, error) {
 	// STEP 1: Load the saved network and its metadata
 	network, metadata, err := graymatter.LoadNetwork(filename)
@@ -93,7 +101,7 @@ func LoadModelForInference(filename string) (*ImageClassifier, *graymatter.Netwo
 		ImageWidth:  28,  // All images must be 28×28 pixels
 		ImageHeight: 28,
 		InputSize:   784, // 28 × 28 = 784 pixels
-		OutputSize:  62,  // 26 + 26 + 10 = 62 character classes
+		OutputSize:  94,  // UPDATED: 26 + 26 + 10 + 32 = 94 character classes
 	}
 
 	// STEP 3: Create classifier instance with loaded network
@@ -124,6 +132,11 @@ func LoadModelForInference(filename string) (*ImageClassifier, *graymatter.Netwo
 // - Recall: Of all actual positives, how many did we correctly identify?
 // - F1-score: Balanced combination of precision and recall
 // - Per-class accuracy: Performance on each individual character
+//
+// ENHANCED FOR 94-CLASS EVALUATION:
+// Now evaluates performance across the full range of character types including
+// punctuation marks, which may have different accuracy characteristics than
+// letters and digits.
 func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 	// STEP 1: Temporarily switch data directory to load test data
 	// We need to load test data the same way we loaded training data,
@@ -156,7 +169,7 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 
 	// STEP 6: Calculate accuracy using the library's method
 	// This runs all test examples through the network and computes
-	// the percentage of correct predictions
+	// the percentage of correct predictions across all 94 character classes
 	accuracy, err := ic.network.CalculateAccuracy(dataset, 0.5)
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate accuracy: %w", err)
@@ -169,9 +182,9 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 
 // 1. DESCRIPTIVE FILENAMES:
 // Use names that include key information:
-// - "character_classifier_acc_94.5_lr_0.001.json"
-// - "handwriting_model_v2_epochs_500.json"
-// - "production_model_2024_01_15.json"
+// - "character_classifier_94class_acc_92.5_lr_0.001.json"
+// - "enhanced_model_with_punctuation_v3.json"
+// - "production_model_2024_05_25.json"
 
 // 2. VERSION CONTROL FOR MODELS:
 // Consider using Git LFS or specialized model versioning tools like DVC
@@ -182,20 +195,23 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 // - Training date and duration
 // - Dataset characteristics (size, source, preprocessing)
 // - Hyperparameters used
-// - Performance metrics
+// - Performance metrics (overall and per-class if available)
 // - Known limitations or issues
+// - Character set supported (62-class vs 94-class)
 
 // 4. TESTING STRATEGY:
 // - Unit tests: Test individual functions work correctly
 // - Integration tests: Test entire pipeline end-to-end
 // - Performance tests: Verify accuracy on known test sets
 // - Regression tests: Ensure new changes don't break existing functionality
+// - Character-type-specific tests: Verify punctuation recognition works properly
 
 // 5. DEPLOYMENT CONSIDERATIONS:
 // - Model size (affects loading time and memory usage)
 // - Inference speed (predictions per second)
 // - Resource requirements (CPU, memory, GPU)
 // - Backward compatibility (can old clients use new models?)
+// - Character set compatibility (62-class vs 94-class models)
 
 // COMMON PITFALLS TO AVOID:
 
@@ -214,7 +230,33 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 // 4. CLASS IMBALANCE IN EVALUATION:
 // If your test set has unequal class representation, overall accuracy might
 // be misleading. Consider per-class metrics and balanced test sets.
+// This is especially important with punctuation marks, which may be less
+// common than letters in typical text.
 
-// This model utilities module provides the foundation for a complete machine
-// learning lifecycle: train, save, load, and evaluate models in a consistent,
-// reliable manner.
+// 5. MODEL VERSION MISMATCH:
+// Ensure compatibility between saved models and inference code. A 62-class
+// model won't work with 94-class prediction code, and vice versa.
+
+// ENHANCED CONSIDERATIONS FOR 94-CLASS MODELS:
+
+// 1. PUNCTUATION-SPECIFIC CHALLENGES:
+// - Visual similarity between some punctuation marks (. vs , vs ;)
+// - Size variations (punctuation is often smaller than letters)
+// - Font dependencies (punctuation varies more across fonts)
+// - Lower frequency in typical text (may need more training examples)
+
+// 2. PERFORMANCE MONITORING:
+// - Monitor per-character-type accuracy (letters vs digits vs punctuation)
+// - Identify which punctuation marks are most problematic
+// - Consider separate metrics for different character categories
+
+// 3. DATASET CONSIDERATIONS:
+// - Ensure balanced representation across all 94 classes
+// - Collect extra examples for visually similar characters
+// - Include variety in punctuation mark sizes and styles
+
+// This enhanced model utilities module provides the foundation for a complete
+// machine learning lifecycle with support for comprehensive character recognition
+// including punctuation marks. The utilities handle both 62-class legacy models
+// and new 94-class enhanced models, providing clear upgrade paths and
+// compatibility management.
