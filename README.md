@@ -432,7 +432,6 @@ The MIT License allows you to freely use, modify, and distribute this software f
 
 ## 🙏 Acknowledgments
 
-- **Trevor Sawler** for creating the `graymatter-lite` neural network library and plotting sidecar
 - **The Go Team** for creating an excellent language for systems programming
 - **The Gonum Project** for providing high-quality numerical computing libraries
 - **The machine learning community** for developing the algorithms and techniques implemented here
