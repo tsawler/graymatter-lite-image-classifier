@@ -21,9 +21,9 @@ tasks:
     
 
   train-2000:
-    # trying batchsize 64 learning rate 0.0015 iteratins 150 
+    # works
     cmds:
-      - go run . -samples 2000 -batchsize 64 -lr 0.0015 -iterations 150
+      - go run . -samples 2000 -batchsize 64 -lr 0.0015 -iterations 60
 
   train-5000:
     cmds:
@@ -39,4 +39,8 @@ tasks:
     # Iterations: 30
     # LearningRate: 0.001 (try 0.01)
     # BatchSize: 32
-      - go run . -batchsize=256 -iterations=50 -lr=0.0008
+      - go run . -batchsize=256 -iterations=30 -lr=0.0008
+
+  load-and-predict:
+    cmds:
+      - go run . -load=image_classifier_final.json -predict=a.png

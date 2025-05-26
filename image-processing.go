@@ -196,3 +196,73 @@ func (ic *ImageClassifier) imageToPixels(img image.Image) []float64 {
 
 	return pixels
 }
+
+// analyzeImagePolarity determines if an image is predominantly white on black or black on white.
+// Returns true for black on white (light background, dark foreground), false for white on black.
+func (ic *ImageClassifier) analyzeImagePolarity(pixels []float64) bool {
+	// Sample a few pixels from the corners and center to determine background color
+	// This is a heuristic and assumes the background is relatively uniform.
+	width := ic.config.ImageWidth
+	height := ic.config.ImageHeight
+	
+	// Check corners and center
+	sampleIndices := []int{
+		0,                       // Top-left
+		width - 1,               // Top-right
+		width * (height - 1),    // Bottom-left
+		width * height - 1,      // Bottom-right
+		(width*height)/2,        // Center
+	}
+
+	var sumBrightness float64
+	for _, idx := range sampleIndices {
+		if idx >= 0 && idx < len(pixels) { // Ensure index is within bounds
+			sumBrightness += pixels[idx]
+		}
+	}
+	
+	avgBrightness := sumBrightness / float64(len(sampleIndices))
+
+	// If average brightness of sampled areas is high (closer to 1.0), it's likely a white background.
+	// We use a threshold (e.g., 0.5) to decide.
+	return avgBrightness > 0.5 
+}
+
+// invertPixels inverts the grayscale values of the image pixels.
+// 0.0 (black) becomes 1.0 (white), and 1.0 (white) becomes 0.0 (black).
+func (ic *ImageClassifier) invertPixels(pixels []float64) []float64 {
+	inverted := make([]float64, len(pixels))
+	for i, p := range pixels {
+		inverted[i] = 1.0 - p
+	}
+	return inverted
+}
+
+// saveProcessedImage saves the processed pixel data as a 28x28 grayscale PNG image.
+func (ic *ImageClassifier) saveProcessedImage(pixels []float64, filename string) error {
+	img := image.NewGray(image.Rect(0, 0, ic.config.ImageWidth, ic.config.ImageHeight))
+
+	for y := 0; y < ic.config.ImageHeight; y++ {
+		for x := 0; x < ic.config.ImageWidth; x++ {
+			pixelIndex := y*ic.config.ImageWidth + x
+			if pixelIndex < len(pixels) {
+				// Convert normalized float (0.0-1.0) back to uint8 (0-255) for grayscale
+				grayVal := uint8(pixels[pixelIndex] * 255)
+				img.SetGray(x, y, color.Gray{Y: grayVal})
+			}
+		}
+	}
+
+	outFile, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create output image file: %w", err)
+	}
+	defer outFile.Close()
+
+	err = png.Encode(outFile, img)
+	if err != nil {
+		return fmt.Errorf("failed to encode PNG image: %w", err)
+	}
+
+	return nil
+}

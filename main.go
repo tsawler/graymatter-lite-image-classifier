@@ -42,21 +42,21 @@ import (
 // The program now supports comprehensive character recognition with flexible
 // data sampling for efficient development workflows.
 func main() {
-	var fileToPredict string
+	var fileToPredict, fileToLoad string
 	var batchSize, iterations, samplesPerClass int
 	var learningRate float64
 
 	flag.StringVar(&fileToPredict, "predict", "a.png", "File to make prediction on (default 'a.png')")
-	flag.IntVar(&batchSize, "batchsize", 32, "batch size (default 32)")
+	flag.StringVar(&fileToLoad, "load", "", "File to load (trained model)")
+	flag.IntVar(&batchSize, "batchsize", 64, "batch size (default 64)")
 	flag.IntVar(&iterations, "iterations", 30, "iterations (number of epochs; default 30)")
 	flag.Float64Var(&learningRate, "lr", 0.001, "learning rate")
 	flag.IntVar(&samplesPerClass, "samples", 0, "samples per class (0 = use all available; default 0)")
 
 	flag.Parse()
 
-	fmt.Println("Starting Enhanced Image Classification System with Data Sampling & Intelligent Caching...")
-	fmt.Println("Supporting 94 character classes: A-Z, a-z, 0-9, and punctuation marks")
-	fmt.Println("Features: Model persistence + Flexible data sampling")
+	fmt.Println("Starting Image Classification System...")
+	fmt.Println("Using 94 character classes: A-Z, a-z, 0-9, and punctuation marks")
 	
 	// Display sampling configuration
 	if samplesPerClass > 0 {
@@ -77,23 +77,21 @@ func main() {
 	// Add sampling configuration to config
 	config.SamplesPerClass = samplesPerClass
 	
-	// STEP 2: Check if a pre-trained "best" model exists
-	// We look for a model named "image_classifier_final.json".
-	bestModelPath := "./image_classifier_final.json"
-	
 	var classifier *ImageClassifier
 	var err error
+
+	bestModelPath := "./image_classifier_final.json"
 	
-	// Check if the best model file exists on disk
-	if _, err := os.Stat(bestModelPath); err == nil {
+	// Check if trained model exists on disk
+	if _, err := os.Stat(fileToLoad); err == nil {
 		// PRE-TRAINED MODEL FOUND: Load the existing trained model
 		fmt.Printf("\n=== LOADING PRE-TRAINED MODEL ===\n")
-		fmt.Printf("Found existing best model: %s\n", bestModelPath)
+		fmt.Printf("Found model: %s\n", fileToLoad)
 		fmt.Println("Loading pre-trained model (skipping both data processing and training)...")
 		fmt.Println("Note: Pre-trained model may have been trained on different sample size")
 		
 		// Use the model loading utility from model-utils.go
-		c, metadata, err := LoadModelForInference(bestModelPath)
+		c, metadata, err := LoadModelForInference(fileToLoad)
 		if err != nil {
 			log.Fatalf("Failed to load existing model: %v", err)
 		}
@@ -113,7 +111,7 @@ func main() {
 	} else {
 		// NO PRE-TRAINED MODEL FOUND: Train a new model
 		fmt.Printf("\n=== TRAINING NEW MODEL ===\n")
-		fmt.Printf("No existing model found at %s\n", bestModelPath)
+		fmt.Printf("No existing model found at %s\n", fileToLoad)
 		
 		if samplesPerClass > 0 {
 			fmt.Printf("Will train new model using %d samples per class\n", samplesPerClass)
@@ -128,7 +126,7 @@ func main() {
 		// Create a new classifier instance
 		classifier = NewImageClassifier(config)
 
-		// STEP 3: Train the network with validation (includes intelligent data caching and sampling)
+		// STEP 2: Train the network with validation (includes intelligent data caching and sampling)
 		// The TrainWithValidation function now handles:
 		// - Training the neural network on sampled data
 		if err := classifier.TrainWithValidation(); err != nil {
@@ -145,7 +143,7 @@ func main() {
 			fmt.Println("  → Training time reflects dataset size (full dataset or large sample)")
 		}
 		
-		// STEP 4: Save the newly trained model as the "best" model
+		// STEP 3: Save the newly trained model as the "best" model
 		// This ensures that future runs will find and load this model
 		fmt.Println("\n=== SAVING TRAINED MODEL ===")
 		fmt.Println("Saving trained model as best model for future use...")
@@ -168,7 +166,7 @@ func main() {
 		}
 	}
 
-	// STEP 5: Test the model (whether loaded or newly trained)
+	// STEP 4: Test the model (whether loaded or newly trained)
 	// This verification step ensures the model is working correctly
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("TESTING ENHANCED MODEL PERFORMANCE")
@@ -205,7 +203,7 @@ func main() {
 		fmt.Printf("  Character type: %s\n", charType)
 	}
 
-	// STEP 6: System status
+	// STEP 5: System status
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("SYSTEM STATUS")
 	fmt.Println(strings.Repeat("=", 60))

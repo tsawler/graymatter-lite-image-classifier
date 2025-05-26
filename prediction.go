@@ -44,7 +44,24 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// 5. Flattens 28×28 image to 784-element array
 	// 6. Validates that result matches expected dimensions
 
-	// STEP 2: Convert to dataset format for the neural network
+	// STEP 2: Analyze image polarity and invert if necessary
+	isBlackOnWhite := ic.analyzeImagePolarity(pixels)
+	if isBlackOnWhite {
+		fmt.Println("Detected black character on white background. Inverting image...")
+		pixels = ic.invertPixels(pixels)
+	} else {
+		fmt.Println("Detected white character on black background. No inversion needed.")
+	}
+
+	// STEP 3: Save the processed (and potentially inverted) image
+	saveFileName := "prediction_image.png"
+	if err := ic.saveProcessedImage(pixels, saveFileName); err != nil {
+		fmt.Printf("Warning: Failed to save processed image to %s: %v\n", saveFileName, err)
+	} else {
+		fmt.Printf("Processed image saved to %s\n", saveFileName)
+	}
+
+	// STEP 4: Convert to dataset format for the neural network
 	// The graymatter library expects data in DataSet format, even for single predictions
 	inputs := [][]float64{pixels}                    // Wrap single image in batch format
 	dataset, err := graymatter.NewDataSet(inputs, [][]float64{{0}}) // Dummy output (not used for prediction)
@@ -57,7 +74,7 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// we don't know the correct answer (that's what we're trying to predict!).
 	// We provide a dummy output that gets ignored during prediction.
 
-	// STEP 3: Run the image through the trained neural network
+	// STEP 5: Run the image through the trained neural network
 	// This is where the actual "intelligence" happens - the network uses its
 	// learned weights to transform pixel values into class probabilities
 	predictions, err := ic.network.Predict(dataset.Inputs)
@@ -78,7 +95,7 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// - 91% confidence it's class 2 (maybe "C") ← Our prediction!
 	// - 2% confidence it's class 3 (maybe "D")
 
-	// STEP 4: Find the class with highest probability (argmax operation)
+	// STEP 6: Find the class with highest probability (argmax operation)
 	_, cols := predictions.Dims()
 	maxProb := 0.0
 	maxIndex := 0
@@ -97,7 +114,7 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// of the maximum value, not the maximum value itself. If the highest
 	// probability is 0.91 at position 2, argmax returns 2 (the index).
 
-	// STEP 5: Convert numerical index back to character
+	// STEP 7: Convert numerical index back to character
 	// The network outputs numerical indices, but humans want character names
 	className, exists := IndexToClass[maxIndex]
 	if !exists {
@@ -109,7 +126,7 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	// During prediction, we reverse this: 0 → "A", 1 → "B", etc.
 	// The IndexToClass map was built during initialization for this purpose.
 
-	// STEP 6: Return prediction and confidence
+	// STEP 8: Return prediction and confidence
 	return className, maxProb, nil
 }
 
