@@ -152,10 +152,7 @@ func (ic *ImageClassifier) resizeImageToTarget(src image.Image, targetWidth, tar
 	// smaller of the two scale factors to ensure nothing gets cut off
 	scaleX := float64(targetWidth) / float64(srcWidth)
 	scaleY := float64(targetHeight) / float64(srcHeight)
-	scale := scaleX
-	if scaleY < scaleX {
-		scale = scaleY
-	}
+	scale := min(scaleY, scaleX)
 
 	// Calculate scaled dimensions (will be <= target dimensions)
 	scaledWidth := int(float64(srcWidth) * scale)
@@ -168,8 +165,8 @@ func (ic *ImageClassifier) resizeImageToTarget(src image.Image, targetWidth, tar
 	// Manual scaling using nearest neighbor interpolation
 	// More sophisticated interpolation methods exist, but nearest neighbor
 	// is sufficient for our purposes and avoids additional dependencies
-	for y := 0; y < scaledHeight; y++ {
-		for x := 0; x < scaledWidth; x++ {
+	for y := range scaledHeight {
+		for x := range scaledWidth {
 			// Map scaled coordinates back to source coordinates
 			srcX := int(float64(x) / scale)
 			srcY := int(float64(y) / scale)
@@ -345,8 +342,8 @@ func (ic *ImageClassifier) saveProcessedImage(pixels []float64, filename string)
 	img := image.NewGray(image.Rect(0, 0, ic.config.ImageWidth, ic.config.ImageHeight))
 
 	// Convert each normalized pixel value back to 8-bit grayscale
-	for y := 0; y < ic.config.ImageHeight; y++ {
-		for x := 0; x < ic.config.ImageWidth; x++ {
+	for y := range ic.config.ImageHeight {
+		for x := range ic.config.ImageWidth {
 			pixelIndex := y*ic.config.ImageWidth + x
 			if pixelIndex < len(pixels) {
 				// Convert normalized float (0.0-1.0) back to uint8 (0-255) for image format

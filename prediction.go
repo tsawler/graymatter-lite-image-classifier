@@ -113,7 +113,7 @@ func (ic *ImageClassifier) Predict(imagePath string) (string, float64, error) {
 	maxIndex := 0
 
 	// Search through all 94 class probabilities to find the maximum
-	for j := 0; j < cols; j++ {
+	for j := range cols {
 		prob := predictions.At(0, j) // Row 0 (our single image), column j (class j)
 		if prob > maxProb {
 			maxProb = prob

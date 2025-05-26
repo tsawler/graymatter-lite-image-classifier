@@ -369,7 +369,7 @@ func sampleImagePaths(paths []string, sampleSize int) []string {
 	// PARTIAL FISHER-YATES SHUFFLE ALGORITHM:
 	// We only need to shuffle the first 'sampleSize' elements, not the entire array.
 	// This is more efficient than shuffling everything and then taking the first N.
-	for i := 0; i < sampleSize; i++ {
+	for i := range sampleSize {
 		// Pick a random index from the remaining unshuffled elements
 		j := i + rand.Intn(len(pathsCopy)-i)
 		
