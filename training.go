@@ -197,13 +197,6 @@ func (ic *ImageClassifier) createNetwork() error {
 	// Store the network in our classifier for later use
 	ic.network = network
 
-	// Debug output to verify network creation
-	fmt.Printf("Network created with layers: %v\n", network.LayerSizes)
-	fmt.Printf("Hidden activation: %d, Output activation: %d, Cost function: %d\n", 
-		network.HiddenActivationFunctionType, 
-		network.OutputActivationFunctionType, 
-		network.CostFunctionType)
-
 	return nil
 }
 
