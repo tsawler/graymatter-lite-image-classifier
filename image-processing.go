@@ -55,15 +55,7 @@ func (ic *ImageClassifier) loadAndProcessImage(imagePath string) ([]float64, err
 // 1. Loads the image (any supported format)
 // 2. Resizes to exactly 28x28 while preserving aspect ratio
 // 3. Converts to grayscale and normalizes pixel values
-// 4. SAVES the processed image for inspection/debugging
-// 5. Returns the same format expected by the neural network
-//
-// WHY SAVE THE PROCESSED IMAGE?
-// Saving the processed image is invaluable for debugging:
-// - Verify preprocessing is working correctly
-// - See exactly what the neural network "sees"
-// - Diagnose prediction issues
-// - Compare processed images across different inputs
+// 4. Returns the same format expected by the neural network
 //
 // WHY SEPARATE FROM TRAINING PIPELINE?
 // - Training images should remain strictly controlled (28x28) for consistency
@@ -96,62 +88,16 @@ func (ic *ImageClassifier) loadAndProcessImageForPrediction(imagePath string) ([
 	// STEP 2: Resize to target dimensions (this is the new part!)
 	resizedImg := ic.resizeImageToTarget(img, ic.config.ImageWidth, ic.config.ImageHeight)
 
-	// STEP 3: Save the processed image for inspection
-	// This allows you to see exactly what the neural network is analyzing
-	if err := ic.saveProcessedImage(resizedImg, "image_to_predict.png"); err != nil {
-		// Log warning but don't fail the prediction if saving fails
-		fmt.Printf("Warning: Failed to save processed image: %v\n", err)
-	} else {
-		fmt.Println("Saved processed image as: image_to_predict.png")
-	}
-
-	// STEP 4: Convert to pixels using existing logic
+	// STEP 3: Convert to pixels using existing logic
 	pixels := ic.imageToPixels(resizedImg)
 
-	// STEP 5: Validate final dimensions (should always be correct now)
+	// STEP 4: Validate final dimensions (should always be correct now)
 	if len(pixels) != ic.config.InputSize {
 		return nil, fmt.Errorf("internal error: processed image has %d pixels, expected %d",
 			len(pixels), ic.config.InputSize)
 	}
 
 	return pixels, nil
-}
-
-// saveProcessedImage saves the processed image to the file system.
-//
-// WHY SAVE THE PROCESSED IMAGE?
-// This is incredibly useful for debugging and understanding your model:
-// 1. VERIFICATION: See exactly what the neural network analyzes
-// 2. DEBUGGING: Compare processed vs original to check preprocessing
-// 3. DIAGNOSIS: If predictions are wrong, inspect the processed image
-// 4. QUALITY CONTROL: Ensure image quality is sufficient for recognition
-//
-// THE PROCESSED IMAGE SHOWS:
-// - 28×28 pixels (network input size)
-// - Grayscale conversion result
-// - Aspect ratio preservation and centering
-// - White background padding if needed
-//
-// TROUBLESHOOTING WITH SAVED IMAGES:
-// - Blurry image → original might be too small or low quality
-// - Wrong colors → grayscale conversion issues
-// - Poor centering → resizing algorithm issues
-// - Unexpected content → wrong input file
-func (ic *ImageClassifier) saveProcessedImage(img image.Image, filename string) error {
-	// Create the output file
-	outFile, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", filename, err)
-	}
-	defer outFile.Close()
-
-	// Save as PNG for best quality (lossless compression)
-	// PNG is ideal for grayscale images with text/characters
-	if err := png.Encode(outFile, img); err != nil {
-		return fmt.Errorf("failed to encode image as PNG: %w", err)
-	}
-
-	return nil
 }
 
 // resizeImageToTarget resizes an image to target dimensions while preserving aspect ratio.
@@ -244,46 +190,9 @@ func (ic *ImageClassifier) imageToPixels(img image.Image) []float64 {
 			gray := (RedLuminance*float64(r) + GreenLuminance*float64(g) + BlueLuminance*float64(b)) / RGBAMax
 
 			pixelIndex := (y-bounds.Min.Y)*width + (x-bounds.Min.X)
-			pixels[pixelIndex] = 1.0 - gray
+			pixels[pixelIndex] = gray
 		}
 	}
 
 	return pixels
 }
-
-// BENEFITS OF SAVING PROCESSED IMAGES:
-
-// 1. VISUAL DEBUGGING:
-// You can open "image_to_predict.png" and see exactly what your neural
-// network is analyzing. This is invaluable when predictions seem wrong.
-
-// 2. PREPROCESSING VERIFICATION:
-// Compare the saved image to your original to ensure:
-// - Proper grayscale conversion
-// - Correct resizing and aspect ratio preservation
-// - Appropriate centering and padding
-
-// 3. QUALITY ASSESSMENT:
-// Check if the processed image has sufficient quality for recognition:
-// - Is text/character clear and readable?
-// - Is the image too blurry or pixelated?
-// - Does the character fill an appropriate amount of the 28x28 space?
-
-// 4. TRAINING DATA COMPARISON:
-// Compare processed prediction images to your training data to ensure
-// they have similar characteristics (brightness, size, positioning).
-
-// 5. TROUBLESHOOTING WORKFLOW:
-// When a prediction is wrong:
-// 1. Look at "image_to_predict.png"
-// 2. Compare to training examples of the predicted vs actual character
-// 3. Identify if the issue is preprocessing, model, or input quality
-
-// EXAMPLE USAGE OUTPUT:
-// When you run prediction, you'll see:
-// "Saved processed image as: image_to_predict.png"
-// "Predicted character: 'A'"
-// "Confidence: 95.2%"
-//
-// Then you can examine image_to_predict.png to see the 28x28 grayscale
-// image that produced this prediction.

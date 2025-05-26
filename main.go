@@ -34,41 +34,16 @@ import (
 // UPDATED FOR 94-CLASS RECOGNITION:
 // The program now supports comprehensive character recognition including
 // uppercase letters, lowercase letters, digits, and punctuation marks.
-//
-// NEW DATA SAMPLING FEATURE:
-// Added support for data sampling to reduce training time with large datasets.
-// Use -samples parameter to limit images per class for faster experimentation.
 func main() {
-	var batchSize, iterations, maxSamplesPerClass int
-	var learningRate float64
 	fileToPredict := ""
-	flag.IntVar(&batchSize, "batchsize", 32, "Batch size (default 32)")
-	flag.IntVar(&iterations, "iterations", 500, "Number of iterations (default 500)")
-	flag.Float64Var(&learningRate, "lr", 0.001, "Learning rate (default 0.001)")
 	flag.StringVar(&fileToPredict, "predict", "a.png", "File to make prediction on (default 'a.png')")
-	flag.IntVar(&maxSamplesPerClass, "samples", 0, "Maximum samples per class (0 = use all available, default 0)")
-	
 	flag.Parse()
 
 	fmt.Println("Starting Enhanced Image Classification System...")
 	fmt.Println("Supporting 94 character classes: A-Z, a-z, 0-9, and punctuation marks")
-	
-	// Display data sampling information
-	if maxSamplesPerClass > 0 {
-		fmt.Printf("Data sampling enabled: Using maximum %d images per class\n", maxSamplesPerClass)
-		fmt.Println("This will significantly reduce training time for large datasets.")
-	} else {
-		fmt.Println("Using all available training data (no sampling)")
-	}
 
 	// STEP 1: Create configuration for our neural network
 	config := NewDefaultConfig()
-	config.TrainingOptions.BatchSize = batchSize
-	config.TrainingOptions.Iterations = iterations
-	config.TrainingOptions.LearningRate = learningRate
-	
-	// NEW: Add sampling configuration to the config
-	config.MaxSamplesPerClass = maxSamplesPerClass
 	
 	// STEP 2: Check if a pre-trained "best" model exists
 	// We look for a model named "image_classifier_final.json".
@@ -105,48 +80,24 @@ func main() {
 		// NO MODEL FOUND: Train a new model from scratch
 		fmt.Printf("No existing model found at %s\n", bestModelPath)
 		fmt.Println("Training new model from scratch...")
-		
-		// Display training configuration including sampling info
-		fmt.Printf("Training configuration:\n")
-		fmt.Printf("  - Batch size: %d\n", batchSize)
-		fmt.Printf("  - Learning rate: %.6f\n", learningRate)
-		fmt.Printf("  - Iterations: %d\n", iterations)
-		if maxSamplesPerClass > 0 {
-			fmt.Printf("  - Data sampling: %d images per class\n", maxSamplesPerClass)
-			fmt.Printf("  - Expected total images: ~%d (94 classes × %d samples)\n", 94*maxSamplesPerClass, maxSamplesPerClass)
-		} else {
-			fmt.Printf("  - Data sampling: Using all available data\n")
-		}
-		
+		fmt.Println("This may take longer due to the expanded 94-class character set...")
 		startTime := time.Now()
-		fmt.Printf("Training started at %s\n", time.Now().Format("2006-01-02 03:04:05pm"))
 
 		// Create a new classifier instance
 		classifier = NewImageClassifier(config)
 
 		// STEP 3: Train the network with validation
 		// This is the same training process as before, but now handles 94 classes
-		// and supports data sampling
 		if err := classifier.TrainWithValidation(); err != nil {
 			log.Fatal("Training failed:", err)
 		}
 
-		fmt.Printf("Training complete. Time to train: %v\n", time.Since(startTime))
+		fmt.Println("Training complete. Time to train:", time.Since(startTime))
 		
 		// STEP 4: Save the newly trained model as the "best" model
 		// This ensures that future runs will find and load this model
 		fmt.Println("Saving trained model as best model...")
-		
-		// Include sampling information in the model description
-		var description string
-		if maxSamplesPerClass > 0 {
-			description = fmt.Sprintf("Enhanced character classifier with %d classes (A-Z, a-z, 0-9, punctuation) - trained with %d samples per class", 
-				config.OutputSize, maxSamplesPerClass)
-		} else {
-			description = fmt.Sprintf("Enhanced character classifier with %d classes (A-Z, a-z, 0-9, punctuation) - trained with all available data", 
-				config.OutputSize)
-		}
-		
+		description := fmt.Sprintf("Enhanced character classifier trained with %d classes (A-Z, a-z, 0-9, punctuation)", config.OutputSize)
 		if err := classifier.SaveModel(bestModelPath, description); err != nil {
 			log.Printf("Warning: Failed to save model: %v", err)
 		} else {
@@ -210,27 +161,32 @@ func main() {
 	
 	fmt.Println("\nProgram completed successfully!")
 	
-	// USAGE EXAMPLES WITH NEW SAMPLING FEATURE:
+	// USAGE SCENARIOS:
 	
-	// QUICK EXPERIMENTATION (1000 samples per class):
-	// ./program -samples 1000 -iterations 200 -batchsize 128
-	// This trains much faster while still getting good results
+	// FIRST RUN (no existing model):
+	// - Program trains a new model from scratch with 94 classes
+	// - Saves the trained model as "image_classifier_final.json"
+	// - Tests the model with a prediction
 	
-	// MEDIUM TRAINING (5000 samples per class):
-	// ./program -samples 5000 -iterations 300 -lr 0.01
-	// Balance between speed and accuracy
+	// SUBSEQUENT RUNS (model exists):
+	// - Program loads the existing "image_classifier_final.json" 
+	// - Skips training entirely (much faster!)
+	// - Tests the loaded model with a prediction
 	
-	// FULL TRAINING (all available data):
-	// ./program -batchsize 512 -lr 0.02
-	// Uses all 13,812 images per class for maximum accuracy
+	// FORCE RETRAINING:
+	// - Delete the "image_classifier_final.json" file
+	// - Run the program again to train a fresh model with updated data
 	
 	// PRODUCTION DEPLOYMENT:
-	// Train with desired sampling, then deploy the saved model
+	// - Train the model on your development/training machine
+	// - Copy the "_final.json" file to your production environment
+	// - Run this program in production - it will load the model and be ready for predictions
 	
 	// TESTING WITH DIFFERENT CHARACTER TYPES:
-	// ./program -predict letter_A.png -samples 1000
-	// ./program -predict digit_5.png
-	// ./program -predict exclamation.png
+	// Try predicting on different types of characters:
+	// - Letters: ./program -predict letter_A.png
+	// - Digits: ./program -predict digit_5.png  
+	// - Punctuation: ./program -predict exclamation.png
 }
 
 // getCharacterType determines what type of character was predicted.
@@ -257,58 +213,64 @@ func getCharacterType(char string) string {
 	}
 }
 
-// ENHANCED FEATURES FOR DATA SAMPLING:
+// ADDITIONAL UTILITIES FOR MODEL MANAGEMENT:
 
-// 1. FLEXIBLE SAMPLING:
-// Use -samples parameter to control dataset size
-// 0 = use all data, any positive number = limit per class
+// You might want to add these functions for more sophisticated model management:
 
-// 2. TRAINING TIME ESTIMATION:
-// With 13,812 images per class:
-// - No sampling: 6-8 hours training time
-// - 1000 samples: ~30-45 minutes training time  
-// - 2000 samples: ~1-1.5 hours training time
-// - 5000 samples: ~2-3 hours training time
+// func findBestModel(basePath string) (string, error) {
+//     // Look for various model files and return the one with highest accuracy
+//     // Could check for _best.json, _final.json, etc.
+// }
 
-// 3. ACCURACY EXPECTATIONS:
-// - 1000 samples: 85-90% accuracy (good for experimentation)
-// - 2000 samples: 90-93% accuracy (good balance)
-// - 5000 samples: 93-95% accuracy (near-optimal)
-// - All samples: 94-96% accuracy (maximum potential)
+// func compareModelPerformance(model1Path, model2Path, testDataPath string) error {
+//     // Load both models and compare their accuracy on the same test set
+//     // Useful for A/B testing different model versions
+// }
 
-// 4. RECOMMENDED WORKFLOW:
-// 1. Start with -samples 1000 for quick experiments
-// 2. Increase to -samples 2000 for better accuracy
-// 3. Use full dataset for final production model
+// func validateModelCompatibility(modelPath string, expectedConfig *Config) error {
+//     // Ensure the loaded model matches the expected input/output dimensions
+//     // Prevents runtime errors from incompatible models (62-class vs 94-class)
+// }
 
-// COMMAND LINE EXAMPLES:
-
-// Quick test (fast training):
-// ./program -samples 500 -iterations 100 -batchsize 64
-
-// Balanced training:  
-// ./program -samples 2000 -iterations 300 -batchsize 128 -lr 0.01
-
-// Production training:
-// ./program -batchsize 512 -lr 0.02 -iterations 400
-
-// Just prediction (loads existing model):
-// ./program -predict my_image.png
+// func generateTestReport(classifier *ImageClassifier, testDataPath string) error {
+//     // Generate comprehensive test report showing per-class accuracy
+//     // Especially useful for identifying which punctuation marks are problematic
+// }
 
 // BEST PRACTICES DEMONSTRATED:
 
-// 1. COMMAND LINE FLEXIBILITY:
-// All key parameters can be adjusted without code changes
+// 1. SMART LOADING:
+// Check for existing models before training to save time and resources.
 
-// 2. INFORMATIVE FEEDBACK:
-// Clear messaging about sampling settings and expected performance
+// 2. GRACEFUL FALLBACK:  
+// If model loading fails, fall back to training rather than crashing.
 
-// 3. GRADUAL SCALING:
-// Easy to start small and scale up as needed
+// 3. INFORMATIVE OUTPUT:
+// Display model metadata so users understand what they're working with.
 
-// 4. CONFIGURATION INTEGRATION:
-// Sampling parameter integrates cleanly with existing config system
+// 4. VERIFICATION TESTING:
+// Always test the model (loaded or trained) to ensure it's working correctly.
 
-// This enhanced main function provides complete control over dataset sampling,
-// enabling efficient experimentation and training time management for large
-// datasets while maintaining full functionality for production use cases.
+// 5. CLEAR STATUS REPORTING:
+// Tell users exactly what happened and what files are available for future use.
+
+// 6. CHARACTER TYPE FEEDBACK:
+// Help users understand what type of character was predicted for better debugging.
+
+// ENHANCED FEATURES FOR 94-CLASS RECOGNITION:
+
+// 1. EXPANDED CAPABILITY MESSAGING:
+// Clear communication about the model's enhanced capabilities.
+
+// 2. CHARACTER TYPE IDENTIFICATION:
+// Helps users understand and debug predictions across different character types.
+
+// 3. COMPREHENSIVE STATUS REPORTING:
+// Detailed information about what character types are supported.
+
+// 4. PERFORMANCE CONSIDERATIONS:
+// Additional messaging about training time due to increased complexity.
+
+// This enhanced main function provides a complete solution for comprehensive
+// character recognition including punctuation marks, making it suitable for
+// real-world document processing and OCR applications.

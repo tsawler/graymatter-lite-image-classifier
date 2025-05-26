@@ -221,7 +221,7 @@ The program now supports extensive command line configuration:
 ./character-recognition -batchsize 128 -lr 0.01 -iterations 300
 
 # Fast experimentation with data sampling
-./character-recognition -samples 1000 -iterations 200 -batchsize 64
+./character-recognition -samples 1000 -iterations 200 -batchsize 64 -lr 0.001
 
 # Production training with large batches
 ./character-recognition -batchsize 512 -lr 0.02 -iterations 400

@@ -92,17 +92,9 @@ func (ic *ImageClassifier) loadTrainingData() ([]ImageData, error) {
 				return nil, fmt.Errorf("failed to load images from %s: %w", charDir, err)
 			}
 
-			// Apply data sampling if configured
-			if ic.config.MaxSamplesPerClass > 0 && len(charData) > ic.config.MaxSamplesPerClass {
-				charData = ic.sampleData(charData, ic.config.MaxSamplesPerClass)
-				fmt.Printf("Sampled %d images for class '%s' (from %d available)\n", 
-					len(charData), string(char), len(charData))
-			} else {
-				fmt.Printf("Loaded %d images for class '%s'\n", len(charData), string(char))
-			}
-
 			// Add this character's data to our growing collection
 			allData = append(allData, charData...)
+			fmt.Printf("Loaded %d images for class '%s'\n", len(charData), string(char))
 		}
 	}
 
@@ -147,18 +139,10 @@ func (ic *ImageClassifier) loadTrainingData() ([]ImageData, error) {
 				continue // Continue with other punctuation marks
 			}
 
-			// Apply data sampling if configured
-			if ic.config.MaxSamplesPerClass > 0 && len(punctData) > ic.config.MaxSamplesPerClass {
-				punctData = ic.sampleData(punctData, ic.config.MaxSamplesPerClass)
-				fmt.Printf("Sampled %d images for punctuation class '%s' (from %d available, dir '%s')\n", 
-					len(punctData), actualChar, len(punctData), dirName)
-			} else {
-				fmt.Printf("Loaded %d images for punctuation class '%s' (from dir '%s')\n", 
-					len(punctData), actualChar, dirName)
-			}
-
 			// Add this punctuation character's data to our collection
 			allData = append(allData, punctData...)
+			fmt.Printf("Loaded %d images for punctuation class '%s' (from dir '%s')\n", 
+				len(punctData), actualChar, dirName)
 		}
 	} else {
 		fmt.Printf("Warning: Punctuation directory %s does not exist, skipping...\n", punctuationDir)
@@ -305,54 +289,6 @@ func (ic *ImageClassifier) prepareDataForTraining(data []ImageData) ([][]float64
 	}
 
 	return inputs, outputs, nil
-}
-
-// sampleData randomly samples a subset of ImageData for faster training.
-//
-// WHY DATA SAMPLING?
-// Large datasets (like 13,812 images per class) can take hours to train.
-// Random sampling allows for faster experimentation while maintaining
-// representative data distribution and achieving good results.
-//
-// SAMPLING STRATEGY:
-// Uses random selection to ensure each sampled subset is representative
-// of the full dataset. This maintains the statistical properties of
-// the original data while reducing computational requirements.
-//
-// WHEN TO USE SAMPLING:
-// - Quick experimentation and hyperparameter tuning
-// - Proof-of-concept development
-// - When training time is more important than maximum accuracy
-// - Testing different architectures or approaches
-//
-// ACCURACY TRADE-OFFS:
-// - 500 samples: ~85-88% accuracy, very fast training
-// - 1000 samples: ~88-91% accuracy, fast training  
-// - 2000 samples: ~91-93% accuracy, moderate training time
-// - 5000+ samples: ~93-95% accuracy, longer training time
-// - No sampling: ~94-96% accuracy, maximum training time
-func (ic *ImageClassifier) sampleData(data []ImageData, maxSamples int) []ImageData {
-	// If we have fewer images than requested, return all
-	if len(data) <= maxSamples {
-		return data
-	}
-
-	// Create a copy of the data to avoid modifying the original
-	dataCopy := make([]ImageData, len(data))
-	copy(dataCopy, data)
-
-	// Shuffle the data using Fisher-Yates algorithm
-	// This ensures random selection without bias
-	for i := len(dataCopy) - 1; i > 0; i-- {
-		// Generate random index from 0 to i (inclusive)
-		j := int(float64(i+1) * (float64(len(dataCopy)*7919) / float64(982451653))) % (i + 1)
-		
-		// Swap elements at positions i and j
-		dataCopy[i], dataCopy[j] = dataCopy[j], dataCopy[i]
-	}
-
-	// Return the first maxSamples elements (now randomly ordered)
-	return dataCopy[:maxSamples]
 }
 
 // DATA LOADING BEST PRACTICES DEMONSTRATED:

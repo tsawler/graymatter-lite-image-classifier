@@ -137,25 +137,6 @@ type Config struct {
 	// This includes learning rate, batch size, number of epochs, etc.
 	// These hyperparameters are critical for successful training.
 	TrainingOptions graymatter.TrainingOptions
-	
-	// DATA SAMPLING CONFIGURATION
-	
-	// MaxSamplesPerClass: Maximum number of images to use per character class
-	// 0 = use all available images (no sampling)
-	// Positive number = randomly sample that many images per class
-	//
-	// WHY DATA SAMPLING?
-	// With large datasets (like 13,812 images per class), training can take hours.
-	// Sampling allows for faster experimentation while still achieving good results:
-	// - 500-1000 samples: Quick experimentation (30-60 minutes training)
-	// - 1000-2000 samples: Good balance of speed and accuracy (1-2 hours)
-	// - 5000+ samples: Near-optimal accuracy (2-4 hours)
-	// - 0 (no sampling): Maximum accuracy but longest training time
-	//
-	// SAMPLING STRATEGY:
-	// Uses random sampling to ensure representative subset of each class.
-	// This maintains data distribution while reducing computational load.
-	MaxSamplesPerClass int
 }
 
 // NewDefaultConfig creates a configuration with sensible defaults for character recognition.
@@ -197,9 +178,6 @@ func NewDefaultConfig() *Config {
 		
 		// EXTERNAL SERVICES
 		PlottingURL: "http://localhost:8080", // Plotting service running locally
-		
-		// DATA SAMPLING (NEW)
-		MaxSamplesPerClass: 0, // Use all available data by default (no sampling)
 		
 		// TRAINING HYPERPARAMETERS
 		TrainingOptions: graymatter.TrainingOptions{
