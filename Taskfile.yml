@@ -31,14 +31,6 @@ tasks:
 
   train-all:
     cmds:
-    # What works:
-    # 784 input → 128 hidden → 128 hidden → 94 output
-    # HiddenSize: 128
-    # OutputSizse: 94
-    # InputSize: 784 (28 x 28)
-    # Iterations: 30
-    # LearningRate: 0.001 (try 0.01)
-    # BatchSize: 32
       - go run . -batchsize=256 -iterations=30 -lr=0.0008
 
   load-and-predict:
