@@ -5,301 +5,321 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 )
 
-// main is the entry point for our enhanced image classification neural network program.
+// main is the entry point for our image classification neural network program.
 //
-// ENHANCED WORKFLOW WITH INTELLIGENT CACHING AND DATA SAMPLING:
-// This program now features sophisticated caching and flexible data sampling capabilities
-// that dramatically improve development efficiency:
+// INTELLIGENT MODEL MANAGEMENT AND FLEXIBLE DATA SAMPLING:
+// This program demonstrates a sophisticated machine learning workflow that balances
+// development efficiency with production-quality results. Key features include:
 //
-// DATA SAMPLING FEATURE:
-// - Control the number of training images per class via command line
-// - Sample sizes from 1 to full dataset (13000+ per class)
+// FLEXIBLE DATA SAMPLING:
+// - Control training dataset size via command line (--samples flag)
+// - Sample sizes from 1 image per class to full dataset (13,000+ per class)
 // - Maintains balanced representation across all 94 character classes
-// - Useful for rapid prototyping, debugging, and iterative development
+// - Enables rapid prototyping, debugging, and iterative development
+// - Dramatically reduces training time for development workflows
 //
-// FIRST RUN:
-// 1. Sample n images per class from directories (configurable)
-// 2. Train neural network on sampled data
-// 3. Test model with prediction
+// INTELLIGENT MODEL MANAGEMENT:
+// - Automatically detects existing trained models
+// - Loads pre-trained models when available (skips training entirely)
+// - Saves newly trained models for future use
+// - Provides detailed model metadata and performance information
 //
+// COMPREHENSIVE CHARACTER RECOGNITION:
+// - Supports 94 different character classes: A-Z, a-z, 0-9, plus 32 punctuation marks
+// - Suitable for real-world text recognition applications
+//
+// PROGRAM EXECUTION FLOW:
+// 1. Parse command line arguments for training parameters and sampling configuration
+// 2. Check for existing trained model files
+// 3. If model exists: Load it and skip training entirely
+// 4. If no model: Train new model with specified parameters and data sampling
+// 5. Test the model (whether loaded or newly trained) with a sample prediction
+// 6. Display comprehensive system status and capability information
 //
 // DECISION LOGIC FOR MODEL LOADING:
-// 1. Check if a "best" model file exists (pre-trained model)
-// 2. If found: Load the existing model and skip training entirely
-// 3. Test the model with a prediction to verify it works
+// 1. Check if a "best" model file exists at the specified path
+// 2. If found: Load the existing model, display its metadata, skip all training
+// 3. If not found: Train a new model with current configuration
+// 4. Test the model with a prediction to verify it works correctly
 //
-// WHY DATA SAMPLING IS VALUABLE:
-// - Rapid prototyping: Test model architecture changes quickly
-// - Debugging: Work with manageable dataset sizes during development
-// - Resource management: Train on smaller datasets when full dataset is unnecessary
-// - Progressive development: Start small, scale up as needed
+// WHY DATA SAMPLING IS TRANSFORMATIVE FOR ML DEVELOPMENT:
+// - Rapid prototyping: Test model architecture changes in minutes instead of hours
+// - Resource efficiency: Train on laptops and constrained development environments
+// - Cost management: Reduce cloud computing expenses during experimentation
+// - Progressive development: Start small, validate approach, then scale up
+// - Debugging facilitation: Work with manageable dataset sizes during troubleshooting
 //
-// UPDATED FOR 94-CLASS RECOGNITION WITH SAMPLING:
-// The program now supports comprehensive character recognition with flexible
-// data sampling for efficient development workflows.
+// UPDATED FOR 94-CLASS RECOGNITION WITH EFFICIENT DEVELOPMENT WORKFLOWS:
+// The program now supports comprehensive character recognition with flexible data
+// sampling that makes machine learning development dramatically more efficient.
 func main() {
+	// COMMAND LINE ARGUMENT PARSING
+	// Define variables to hold command line arguments with sensible defaults
 	var fileToPredict, fileToLoad string
 	var batchSize, iterations, samplesPerClass int
 	var learningRate float64
 
-	flag.StringVar(&fileToPredict, "predict", "a.png", "File to make prediction on (default 'a.png')")
-	flag.StringVar(&fileToLoad, "load", "", "File to load (trained model)")
-	flag.IntVar(&batchSize, "batchsize", 64, "batch size (default 64)")
-	flag.IntVar(&iterations, "iterations", 30, "iterations (number of epochs; default 30)")
-	flag.Float64Var(&learningRate, "lr", 0.001, "learning rate")
-	flag.IntVar(&samplesPerClass, "samples", 0, "samples per class (0 = use all available; default 0)")
+	// Define command line flags with helpful descriptions
+	flag.StringVar(&fileToPredict, "predict", "a.png", "Image file to make prediction on (default 'a.png')")
+	flag.StringVar(&fileToLoad, "load", "", "Path to existing trained model file to load")
+	flag.IntVar(&batchSize, "batchsize", 64, "Batch size for training (default 64)")
+	flag.IntVar(&iterations, "iterations", 30, "Number of training iterations/epochs (default 30)")
+	flag.Float64Var(&learningRate, "lr", 0.001, "Learning rate for training (default 0.001)")
+	flag.IntVar(&samplesPerClass, "samples", 0, "Number of samples per class (0 = use all available; default 0)")
 
+	// Parse the command line arguments
 	flag.Parse()
 
+	// PROGRAM INITIALIZATION 
 	fmt.Println("Starting Image Classification System...")
-	fmt.Println("Using 94 character classes: A-Z, a-z, 0-9, and punctuation marks")
-	
-	// Display sampling configuration
+
+	// Display current sampling configuration with helpful context
 	if samplesPerClass > 0 {
-		fmt.Printf("Data sampling: Using %d samples per class (total ~%d images)\n", 
-			samplesPerClass, samplesPerClass*94)
-		fmt.Println("Note: Smaller datasets train faster but may have lower accuracy")
+		totalSamples := samplesPerClass * 94
+		fmt.Printf("\n📊 Data Sampling Configuration:\n")
+		fmt.Printf("   • Using %d samples per class\n", samplesPerClass)
+		fmt.Printf("   • Total training images: ~%d\n", totalSamples)
+		fmt.Printf("   • Estimated time reduction: ~%.0f%%\n", (1.0-float64(totalSamples)/1300000.0)*100)
+		fmt.Printf("   • Use case: %s\n", getSamplingUseCase(samplesPerClass))
+		fmt.Printf("   • Note: Smaller datasets train faster but may have lower accuracy\n")
 	} else {
-		fmt.Println("Data sampling: Using ALL available samples per class (~1.3M total images)")
-		fmt.Println("Note: Full dataset provides best accuracy but takes longer to train")
+		fmt.Printf("\n📊 Data Sampling Configuration:\n")
+		fmt.Printf("   • Using ALL available samples per class\n")
+		fmt.Printf("   • Total training images: ~1.3M+ (full dataset)\n")
+		fmt.Printf("   • Use case: Production model training for maximum accuracy\n")
+		fmt.Printf("   • Note: Full dataset provides best accuracy but takes longer to train\n")
 	}
 
-	// STEP 1: Create configuration for our neural network
+	// CONFIGURATION SETUP
+	// Create base configuration and apply command line overrides
 	config := NewDefaultConfig()
 	config.TrainingOptions.LearningRate = learningRate
 	config.TrainingOptions.BatchSize = batchSize
 	config.TrainingOptions.Iterations = iterations
-	
-	// Add sampling configuration to config
 	config.SamplesPerClass = samplesPerClass
-	
+
 	var classifier *ImageClassifier
 	var err error
 
+	// Define the expected path for the best/final trained model
 	bestModelPath := "./image_classifier_final.json"
-	
-	// Check if trained model exists on disk
-	if _, err := os.Stat(fileToLoad); err == nil {
-		// PRE-TRAINED MODEL FOUND: Load the existing trained model
-		fmt.Printf("\n=== LOADING PRE-TRAINED MODEL ===\n")
-		fmt.Printf("Found model: %s\n", fileToLoad)
-		fmt.Println("Loading pre-trained model (skipping both data processing and training)...")
-		fmt.Println("Note: Pre-trained model may have been trained on different sample size")
-		
-		// Use the model loading utility from model-utils.go
-		c, metadata, err := LoadModelForInference(fileToLoad)
+
+	// INTELLIGENT MODEL LOADING DECISION LOGIC
+	// Check if user specified a model to load OR if default model exists
+	modelToLoad := fileToLoad
+	if modelToLoad == "" {
+		// No specific model specified, check for default model
+		if _, err := os.Stat(bestModelPath); err == nil {
+			modelToLoad = bestModelPath
+		}
+	}
+
+	if modelToLoad != "" && fileExists(modelToLoad) {
+		// PRE-TRAINED MODEL FOUND: Load existing model and skip training
+		fmt.Printf("\n🔄 LOADING PRE-TRAINED MODEL\n")
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		fmt.Printf("📁 Found existing model: %s\n", modelToLoad)
+		fmt.Printf("⚡ Loading pre-trained model (skipping training entirely)\n")
+		fmt.Printf("ℹ️  Note: Pre-trained model may have been trained with different settings\n")
+
+		// Load the model using our utility function for inference
+		c, metadata, err := LoadModelForInference(modelToLoad)
 		if err != nil {
-			log.Fatalf("Failed to load existing model: %v", err)
+			log.Fatalf("❌ Failed to load existing model: %v", err)
 		}
 
-		// set classifier to the model loaded from JSON
 		classifier = c
-		
-		// Display information about the loaded model
-		fmt.Println("✓ Successfully loaded pre-trained model!")
-		fmt.Printf("Model description: %s\n", metadata.Description)
-		fmt.Printf("Training details:\n")
-		fmt.Printf("  - Learning rate: %.6f\n", metadata.LearningRate)
-		fmt.Printf("  - Batch size: %d\n", metadata.BatchSize)
-		fmt.Printf("  - Epochs trained: %d\n", metadata.Epochs)
-		fmt.Printf("  - Additional notes: %s\n", metadata.Notes)
-		
+
+		// Display detailed information about the loaded model
+		fmt.Printf("✅ Successfully loaded pre-trained model!\n\n")
+		fmt.Printf("📋 Model Information:\n")
+		fmt.Printf("   • Description: %s\n", metadata.Description)
+		fmt.Printf("   • Training Details:\n")
+		fmt.Printf("     - Learning rate: %.6f\n", metadata.LearningRate)
+		fmt.Printf("     - Batch size: %d\n", metadata.BatchSize)
+		fmt.Printf("     - Epochs trained: %d\n", metadata.Epochs)
+		fmt.Printf("     - Additional notes: %s\n", metadata.Notes)
+
 	} else {
-		// NO PRE-TRAINED MODEL FOUND: Train a new model
-		fmt.Printf("\n=== TRAINING NEW MODEL ===\n")
-		fmt.Printf("No existing model found at %s\n", fileToLoad)
-		
-		if samplesPerClass > 0 {
-			fmt.Printf("Will train new model using %d samples per class\n", samplesPerClass)
-			fmt.Printf("Expected training time: Reduced due to smaller dataset\n")
+		// NO PRE-TRAINED MODEL FOUND: Train a new model from scratch
+		fmt.Printf("\n🚀 TRAINING NEW MODEL\n")
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		if modelToLoad != "" {
+			fmt.Printf("⚠️  Specified model not found: %s\n", modelToLoad)
 		} else {
-			fmt.Println("Will train new model using ALL available samples")
-			fmt.Println("Expected training time: Longer due to full dataset (~1.3M images)")
+			fmt.Printf("📂 No existing model found at: %s\n", bestModelPath)
 		}
-		
+
+		// Display training configuration information
+		if samplesPerClass > 0 {
+			fmt.Printf("🎯 Training new model with %d samples per class\n", samplesPerClass)
+			fmt.Printf("⏱️  Expected training time: %s\n", getExpectedTrainingTime(samplesPerClass))
+		} else {
+			fmt.Printf("🎯 Training new model with ALL available samples\n")
+			fmt.Printf("⏱️  Expected training time: Extended due to full dataset (~1.3M images)\n")
+		}
+
+		fmt.Printf("🔧 Training parameters:\n")
+		fmt.Printf("   • Learning rate: %.4f\n", learningRate)
+		fmt.Printf("   • Batch size: %d\n", batchSize)
+		fmt.Printf("   • Iterations: %d\n", iterations)
+
+		// Record training start time for performance measurement
 		startTime := time.Now()
 
-		// Create a new classifier instance
+		// Create a new classifier instance with our configuration
 		classifier = NewImageClassifier(config)
 
-		// STEP 2: Train the network with validation (includes intelligent data caching and sampling)
-		// The TrainWithValidation function now handles:
-		// - Training the neural network on sampled data
+		// TRAIN THE NETWORK
+		// The TrainWithValidation function handles:
+		// - Loading and preprocessing training data (with sampling if configured)
+		// - Splitting data into training and validation sets
+		// - Training the neural network with backpropagation
+		// - Generating analysis plots and performance metrics
+		fmt.Printf("\n🧠 Starting neural network training...\n")
 		if err := classifier.TrainWithValidation(); err != nil {
-			log.Fatal("Training failed:", err)
+			log.Fatalf("❌ Training failed: %v", err)
 		}
 
+		// Calculate and display training performance metrics
 		trainingDuration := time.Since(startTime)
-		fmt.Printf("\n✓ Training complete! Total time: %v\n", trainingDuration)
-		
-		// Provide timing insights
+		fmt.Printf("\n✅ Training completed successfully!\n")
+		fmt.Printf("⏱️  Total training time: %v\n", trainingDuration)
+
+		// Provide context about training time based on sampling configuration
 		if samplesPerClass > 0 && samplesPerClass < 1000 {
-			fmt.Printf("  → Training time reasonable for %d samples per class\n", samplesPerClass)
+			fmt.Printf("💡 Training time reasonable for %d samples per class\n", samplesPerClass)
+			fmt.Printf("🔄 Consider increasing sample size for higher accuracy when ready\n")
 		} else {
-			fmt.Println("  → Training time reflects dataset size (full dataset or large sample)")
+			fmt.Printf("💡 Training time reflects dataset size\n")
 		}
-		
-		// STEP 3: Save the newly trained model as the "best" model
-		// This ensures that future runs will find and load this model
-		fmt.Println("\n=== SAVING TRAINED MODEL ===")
-		fmt.Println("Saving trained model as best model for future use...")
-		
-		// Include sampling information in model description
+
+		// SAVE THE NEWLY TRAINED MODEL
+		fmt.Printf("\n💾 SAVING TRAINED MODEL\n")
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		fmt.Printf("💾 Saving trained model for future use...\n")
+
+		// Create descriptive model metadata including sampling information
 		var description string
 		if samplesPerClass > 0 {
-			description = fmt.Sprintf("Enhanced character classifier trained with %d classes (%d samples per class)", 
-				config.OutputSize, samplesPerClass)
+			description = fmt.Sprintf("94-class character classifier (trained with %d samples per class)", samplesPerClass)
 		} else {
-			description = fmt.Sprintf("Enhanced character classifier trained with %d classes (full dataset)", 
-				config.OutputSize)
+			description = "94-class character classifier (trained with full dataset)"
 		}
-		
+
+		// Save the model with comprehensive metadata
 		if err := classifier.SaveModel(bestModelPath, description); err != nil {
-			log.Printf("Warning: Failed to save model: %v", err)
+			log.Printf("⚠️  Warning: Failed to save model: %v", err)
 		} else {
-			fmt.Printf("✓ Model saved successfully: %s\n", bestModelPath)
-			fmt.Println("  → Future runs will load this model automatically")
+			fmt.Printf("✅ Model saved successfully: %s\n", bestModelPath)
 		}
 	}
 
-	// STEP 4: Test the model (whether loaded or newly trained)
-	// This verification step ensures the model is working correctly
-	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("TESTING ENHANCED MODEL PERFORMANCE")
-	fmt.Println("Supports: Letters (A-Z, a-z), Digits (0-9), Punctuation (32 marks)")
-	fmt.Println(strings.Repeat("=", 60))
-	
-	// Test with a sample image
-	fmt.Printf("Making prediction on '%s'...\n", fileToPredict)
-	
+	// MODEL TESTING AND VALIDATION
+	// Test the model (whether loaded or newly trained) to verify it works correctly
+	fmt.Printf("\n🧪 TESTING MODEL PERFORMANCE\n")
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("🎯 Model Capabilities:\n")
+	fmt.Printf("   • Letters: A-Z (uppercase), a-z (lowercase)\n")
+	fmt.Printf("   • Digits: 0-9\n")
+	fmt.Printf("   • Punctuation: 32 symbols (!, @, #, $, %%, etc.)\n")
+	fmt.Printf("   • Total: 94 different character classes\n")
+
+	// Perform a test prediction to validate the model works
+	fmt.Printf("\n🔍 Making test prediction on '%s'...\n", fileToPredict)
+
 	prediction, confidence, err := classifier.Predict(fileToPredict)
 	if err != nil {
-		log.Printf("Failed to predict image: %v", err)
-		fmt.Printf("Note: Make sure '%s' exists or change the test image path\n", fileToPredict)
-		fmt.Println("You can test with images containing letters, digits, or punctuation marks!")
+		log.Printf("❌ Failed to predict image: %v\n", err)
+		fmt.Printf("💡 Troubleshooting tips:\n")
+		fmt.Printf("   • Ensure '%s' exists in the current directory\n", fileToPredict)
+		fmt.Printf("   • Try a different image file with --predict flag\n")
+		fmt.Printf("   • Supported formats: PNG, JPEG\n")
+		fmt.Printf("   • Test with images containing letters, digits, or punctuation!\n")
 	} else {
-		fmt.Printf("✓ Prediction successful!\n")
-		fmt.Printf("  Predicted character: '%s'\n", prediction)
-		fmt.Printf("  Confidence: %.2f%%\n", confidence*100)
-		
-		// Interpret confidence level for user
-		switch {
-		case confidence >= 0.9:
-			fmt.Printf("  Assessment: Very confident prediction\n")
-		case confidence >= 0.7:
-			fmt.Printf("  Assessment: Confident prediction\n")
-		case confidence >= 0.5:
-			fmt.Printf("  Assessment: Moderately confident prediction\n")
-		default:
-			fmt.Printf("  Assessment: Low confidence - prediction may be incorrect\n")
-		}
-		
-		// Provide character type information
+		// Successful prediction - display comprehensive results
+		fmt.Printf("✅ Prediction successful!\n\n")
+		fmt.Printf("📊 Prediction Results:\n")
+		fmt.Printf("   • Predicted character: '%s'\n", prediction)
+		fmt.Printf("   • Confidence level: %.1f%%\n", confidence*100)
+
+		// Provide human-friendly interpretation of confidence level
+		confidenceAssessment := getConfidenceAssessment(confidence)
+		fmt.Printf("   • Assessment: %s\n", confidenceAssessment)
+
+		// Provide additional context about the character type
 		charType := getCharacterType(prediction)
-		fmt.Printf("  Character type: %s\n", charType)
+		fmt.Printf("   • Character type: %s\n", charType)
+
+		// Show confidence-based recommendations
+		if confidence < 0.7 {
+			fmt.Printf("💡 Recommendation: Consider using a clearer image for better accuracy\n")
+		}
 	}
 
-	// STEP 5: System status
-	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("SYSTEM STATUS")
-	fmt.Println(strings.Repeat("=", 60))
-	
-	// Check model status
+	// COMPREHENSIVE SYSTEM STATUS REPORT
+	fmt.Printf("\n📋 SYSTEM STATUS REPORT\n")
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+	// Check and report model availability
 	if _, err := os.Stat(bestModelPath); err == nil {
-		fmt.Printf("✓ Enhanced model available: %s\n", bestModelPath)
-		fmt.Println("✓ Ready for production use with 94-class recognition")
-		fmt.Println("✓ Future runs will load this model automatically")
+		fmt.Printf("✅ Model available: %s\n", bestModelPath)
+		fmt.Printf("✅ Ready for production use with 94-class recognition\n")
 	} else {
-		fmt.Println("⚠ No model was saved - check for errors above")
+		fmt.Printf("⚠️  No model was saved - check for errors above\n")
+		fmt.Printf("💡 Ensure training completed successfully\n")
 	}
-	
-	// Sampling strategy information
-	fmt.Println("\nSampling strategy information:")
+
+	// Display sampling strategy information and recommendations
+	fmt.Printf("\n📊 Current Data Sampling Strategy:\n")
 	if samplesPerClass > 0 {
-		fmt.Printf("  ✓ Current run used %d samples per class\n", samplesPerClass)
 		totalSamples := samplesPerClass * 94
-		fmt.Printf("  ✓ Total training samples: ~%d (%.1f%% of full dataset)\n", 
-			totalSamples, float64(totalSamples)/1300000.0*100)
-		fmt.Println("  → Use -samples=0 to train on full dataset")
-		fmt.Println("  → Use -samples=N to train on N samples per class")
+		percentOfFull := float64(totalSamples) / 1300000.0 * 100
+		fmt.Printf("   ✅ Used %d samples per class for this run\n", samplesPerClass)
+		fmt.Printf("   📈 Total training samples: ~%d (%.1f%% of full dataset)\n", totalSamples, percentOfFull)
+		fmt.Printf("   💡 Next steps:\n")
+		if samplesPerClass < 100 {
+			fmt.Printf("      • Try --samples=100 for improved accuracy\n")
+			fmt.Printf("      • Try --samples=1000 for validation testing\n")
+		} else if samplesPerClass < 1000 {
+			fmt.Printf("      • Try --samples=1000 for near-production accuracy\n")
+		}
+		fmt.Printf("      • Use --samples=0 to train on full dataset for maximum accuracy\n")
 	} else {
-		fmt.Println("  ✓ Current run used ALL available samples")
-		fmt.Println("  ✓ Full dataset provides maximum accuracy")
-		fmt.Println("  → Use -samples=N to train on smaller datasets for faster development")
+		fmt.Printf("   ✅ Used ALL available samples (full dataset)\n")
+		fmt.Printf("   🎯 Maximum accuracy configuration\n")
+		fmt.Printf("   💡 Development options:\n")
+		fmt.Printf("      • Use --samples=N for faster development iterations\n")
+		fmt.Printf("      • Recommended: --samples=100 for development, --samples=0 for production\n")
 	}
-	
-	// System capabilities summary
-	fmt.Println("\n✓ System capabilities:")
-	fmt.Println("  - Uppercase letters (A-Z)")
-	fmt.Println("  - Lowercase letters (a-z)")
-	fmt.Println("  - Digits (0-9)")
-	fmt.Println("  - Punctuation marks (!, @, #, $, %, etc.)")
-	fmt.Println("  - Intelligent data caching for fast development")
-	fmt.Println("  - Flexible data sampling (1 to 13000+ samples per class)")
-	fmt.Println("  - Automatic model persistence")
-	
-	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("PROGRAM COMPLETED SUCCESSFULLY!")
-	fmt.Println("Ready for production use or further development")
-	fmt.Println(strings.Repeat("=", 60))
-	
-	// USAGE EXAMPLES WITH SAMPLING:
-	
-	// Quick prototyping with small datasets:
-	// go run . -samples=10 -iterations=50    # 10 samples per class, fast training
-	// go run . -samples=100 -iterations=100  # 100 samples per class, balanced training
-	
-	// Full dataset training:
-	// go run . -samples=0 -iterations=500     # All samples, maximum accuracy
-	
-	// Development workflow:
-	// go run . -samples=50                    # Quick test with small dataset
-	// go run . -samples=500                   # Medium dataset for validation
-	// go run . -samples=0                     # Full dataset for final model
-	
-	// SAMPLING SCENARIOS:
-	
-	// SCENARIO 1: Rapid prototyping (samples=10-50):
-	// - Very fast training and iteration
-	// - Good for testing architecture changes
-	// - Lower accuracy but quick feedback
-	// - Time: Seconds to minutes
-	
-	// SCENARIO 2: Development validation (samples=100-1000):
-	// - Balanced training time vs accuracy
-	// - Good for hyperparameter tuning
-	// - Reasonable accuracy for development
-	// - Time: Minutes to tens of minutes
-	
-	// SCENARIO 3: Full dataset training (samples=0):
-	// - Maximum accuracy and robustness
-	// - Best for final model creation
-	// - Slower training but best results
-	// - Time: Hours
-	
-	// SCENARIO 4: Progressive development:
-	// - Start with samples=10 for quick architecture testing
-	// - Move to samples=100 for hyperparameter tuning
-	// - Scale to samples=1000 for validation
-	// - Finish with samples=0 for production model
+
+	fmt.Printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("🎉 PROGRAM COMPLETED SUCCESSFULLY!\n")
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+}
+
+// Helper function to check if a file exists
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }
 
 // getCharacterType determines what type of character was predicted.
 //
 // CHARACTER CLASSIFICATION HELPER:
-// This utility function helps users understand what type of character
-// the model predicted, which is useful for debugging and validation.
+// This utility function helps users understand what type of character the model
+// predicted, which is valuable for debugging, validation, and understanding
+// model performance across different character categories.
 func getCharacterType(char string) string {
 	if len(char) != 1 {
 		return "Unknown (multi-character)"
 	}
-	
+
 	c := char[0]
-	
+
 	switch {
 	case c >= 'A' && c <= 'Z':
 		return "Uppercase letter"
@@ -312,28 +332,133 @@ func getCharacterType(char string) string {
 	}
 }
 
+// getConfidenceAssessment provides human-friendly interpretation of confidence levels.
+//
+// CONFIDENCE INTERPRETATION GUIDE:
+// Neural networks output probability scores, but these need interpretation for
+// practical use. This function translates raw confidence scores into actionable
+// assessments that help users understand prediction reliability.
+func getConfidenceAssessment(confidence float64) string {
+	switch {
+	case confidence >= 0.95:
+		return "Extremely confident - prediction highly reliable"
+	case confidence >= 0.90:
+		return "Very confident - prediction likely correct"
+	case confidence >= 0.75:
+		return "Confident - good prediction quality"
+	case confidence >= 0.60:
+		return "Moderately confident - consider verification"
+	case confidence >= 0.40:
+		return "Low confidence - prediction may be incorrect"
+	default:
+		return "Very uncertain - prediction likely wrong"
+	}
+}
 
-// BEST PRACTICES FOR DATA SAMPLING:
+// getSamplingUseCase provides context about different sampling configurations.
+//
+// SAMPLING STRATEGY GUIDANCE:
+// This function helps users understand what different sampling configurations
+// are best suited for, enabling informed decisions about development workflows.
+func getSamplingUseCase(samples int) string {
+	switch {
+	case samples <= 20:
+		return "Rapid prototyping and architecture testing"
+	case samples <= 100:
+		return "Development and hyperparameter tuning"
+	case samples <= 500:
+		return "Validation and model comparison"
+	case samples <= 2000:
+		return "Pre-production accuracy assessment"
+	default:
+		return "High-accuracy training approaching full dataset"
+	}
+}
 
-// 1. START SMALL:
-// Begin development with small sample sizes (10-50 per class) for rapid iteration.
+// getExpectedTrainingTime provides time estimates based on sampling configuration.
+//
+// TRAINING TIME ESTIMATION:
+// This function helps users set appropriate expectations for training duration
+// based on their sampling configuration, enabling better planning and resource allocation.
+func getExpectedTrainingTime(samples int) string {
+	switch {
+	case samples <= 20:
+		return "Very fast (seconds to minutes)"
+	case samples <= 100:
+		return "Fast (minutes)"
+	case samples <= 500:
+		return "Moderate (tens of minutes)"
+	case samples <= 2000:
+		return "Extended (hours)"
+	default:
+		return "Long (multiple hours)"
+	}
+}
 
-// 2. PROGRESSIVE SCALING:
-// Gradually increase sample sizes as your model architecture stabilizes.
+// COMPREHENSIVE DEVELOPMENT WORKFLOW GUIDANCE:
 
-// 3. BALANCED REPRESENTATION:
-// Ensure all character classes get equal representation in sampling.
+// BEST PRACTICES FOR DATA SAMPLING IN ML DEVELOPMENT:
 
-// 4. FINAL VALIDATION:
-// Always test your final model architecture on the full dataset before production.
+// 1. START SMALL AND SCALE GRADUALLY:
+// Begin with very small sample sizes (10-50 per class) to validate your approach,
+// then gradually increase as your architecture and hyperparameters stabilize.
 
-// SAMPLING PERFORMANCE BENEFITS:
+// 2. USE SAMPLING FOR EXPERIMENTATION:
+// When testing different architectures, activation functions, or preprocessing
+// approaches, use small samples for fast iteration cycles.
 
-// 1. 10 SAMPLES/CLASS: ~99% time reduction, suitable for rapid prototyping
-// 2. 100 SAMPLES/CLASS: ~95% time reduction, good for development
-// 3. 1000 SAMPLES/CLASS: ~85% time reduction, excellent for validation
-// 4. FULL DATASET: Baseline performance, maximum accuracy
+// 3. VALIDATE ON LARGER SAMPLES:
+// Before committing to a final architecture, validate its performance on
+// larger sample sizes to ensure the results will scale.
 
-// This enhanced main function provides a complete solution for efficient
-// development and deployment of character recognition systems with flexible
-// data sampling capabilities that dramatically improve development workflows.
+// 4. TRAIN PRODUCTION MODELS ON FULL DATA:
+// For final deployment, always use the complete dataset to achieve maximum
+// accuracy and robustness.
+
+// SAMPLING PERFORMANCE CHARACTERISTICS:
+
+// DEVELOPMENT EFFICIENCY GAINS:
+// - 10 samples/class: 99%+ time reduction, perfect for rapid prototyping
+// - 100 samples/class: 95%+ time reduction, excellent for development
+// - 1000 samples/class: 85%+ time reduction, good for validation
+// - Full dataset: Maximum accuracy, required for production
+
+// ACCURACY TRADE-OFFS:
+// - Small samples: Lower accuracy but enable rapid iteration and debugging
+// - Medium samples: Good accuracy for development decisions and comparisons
+// - Large samples: Near-production accuracy for final validation
+// - Full dataset: Maximum achievable accuracy for deployment
+
+// RESOURCE SCALING:
+// - Memory usage scales linearly with sample size
+// - Training time scales roughly linearly with sample size
+// - Smaller samples enable development on resource-constrained systems
+// - Full dataset may require high-memory servers or cloud instances
+
+// RECOMMENDED DEVELOPMENT PHASES:
+
+// PHASE 1: EXPLORATION (samples=10-50)
+// Focus: Architecture design, basic functionality, pipeline validation
+// Time: Minutes per experiment
+// Goal: Get the system working end-to-end with reasonable results
+
+// PHASE 2: OPTIMIZATION (samples=100-500)
+// Focus: Hyperparameter tuning, preprocessing optimization, feature engineering
+// Time: Minutes to hours per experiment
+// Goal: Optimize the approach for best performance per unit of data
+
+// PHASE 3: VALIDATION (samples=1000-5000)
+// Focus: Performance validation, robustness testing, model comparison
+// Time: Hours per experiment
+// Goal: Ensure the optimized approach scales to larger datasets
+
+// PHASE 4: PRODUCTION (samples=0, full dataset)
+// Focus: Final model training, deployment preparation, maximum accuracy
+// Time: Hours to days
+// Goal: Create the best possible model for real-world deployment
+
+// This main function provides a complete, production-ready machine learning
+// system with intelligent workflows that dramatically improve development efficiency
+// while maintaining the ability to create high-accuracy models for deployment.
+// The flexible sampling system enables developers to work efficiently across the
+// entire ML development lifecycle, from initial prototyping to final production.

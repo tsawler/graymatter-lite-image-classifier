@@ -9,29 +9,26 @@ import (
 // SaveModel saves the trained model with metadata.
 //
 // WHY SAVE MODELS?
-// Training neural networks can take minutes, hours, or even days depending on
-// the dataset size and model complexity. Once you've invested that time and
-// computational resources, you want to preserve the results! Saving models enables:
+// Training neural networks can take anywhere from minutes to days depending on the
+// dataset size and model complexity. Once you've invested that time and computational
+// resources, you want to preserve the results! Saving models enables several important
+// use cases:
 //
-// 1. PRODUCTION DEPLOYMENT: Use the trained model in applications
-// 2. EXPERIMENTATION: Compare different model versions and hyperparameters
-// 3. COLLABORATION: Share models with team members
-// 4. CHECKPOINT RECOVERY: Resume training if interrupted
-// 5. VERSION CONTROL: Track model evolution over time
+// 1. PRODUCTION DEPLOYMENT: Use the trained model in applications without retraining
+// 2. EXPERIMENTATION: Compare different model versions and hyperparameter settings
+// 3. COLLABORATION: Share models with team members or the broader community
+// 4. CHECKPOINT RECOVERY: Resume training if the process gets interrupted
+// 5. VERSION CONTROL: Track model evolution and performance over time
 //
 // WHAT GETS SAVED?
-// - Network architecture (layer sizes, activation functions)
-// - Learned weights and biases (the "knowledge" acquired during training)
-// - Metadata (training accuracy, hyperparameters, notes for future reference)
+// - Network architecture: Layer sizes, activation functions, connections
+// - Learned weights and biases: The actual "knowledge" acquired during training
+// - Training metadata: Accuracy metrics, hyperparameters, notes for future reference
 //
 // WHAT DOESN'T GET SAVED?
-// - Training data (usually too large and often confidential)
-// - Training history (loss curves, intermediate checkpoints)
-// - Temporary training state (gradients, momentum, optimizer state)
-//
-// ENHANCED FOR 94-CLASS RECOGNITION:
-// Now supports saving models trained on the expanded character set including
-// comprehensive punctuation recognition capabilities.
+// - Training data: Usually too large and often confidential/proprietary
+// - Training history: Loss curves and intermediate checkpoints (unless specifically saved)
+// - Temporary training state: Gradients, momentum values, optimizer internal state
 func (ic *ImageClassifier) SaveModel(filename string, description string) error {
 	// Validate that we have a trained model to save
 	if ic.network == nil {
@@ -40,25 +37,22 @@ func (ic *ImageClassifier) SaveModel(filename string, description string) error 
 
 	// METADATA CREATION:
 	// We package important information about the model and training process.
-	// This metadata is invaluable for:
-	// - Remembering which models worked best
-	// - Reproducing successful experiments
-	// - Understanding model performance characteristics
-	// - Debugging prediction issues
+	// This metadata is invaluable for understanding model performance and
+	// reproducing successful experiments later.
 	metadata := graymatter.NetworkMetadata{
-		// Human-readable description of what this model does
+		// Human-readable description of what this model does and its purpose
 		Description: description,
 		
 		// HYPERPARAMETERS USED DURING TRAINING:
-		// These are critical for reproducing results or understanding
+		// These settings are critical for reproducing results or understanding
 		// why a particular model succeeded or failed
 		LearningRate: ic.config.TrainingOptions.LearningRate,
 		BatchSize:    ic.config.TrainingOptions.BatchSize,
 		Epochs:       ic.config.TrainingOptions.Iterations,
 		
 		// MODEL CHARACTERISTICS:
-		// Information that helps users understand the model's capabilities
-		Notes: fmt.Sprintf("Enhanced character classifier with %d classes (A-Z, a-z, 0-9, punctuation)", ic.config.OutputSize),
+		// Information that helps users understand the model's capabilities and limitations
+		Notes: fmt.Sprintf("Character classifier with %d classes (A-Z, a-z, 0-9, punctuation)", ic.config.OutputSize),
 	}
 
 	// SAVE OPERATION:
@@ -70,82 +64,82 @@ func (ic *ImageClassifier) SaveModel(filename string, description string) error 
 // LoadModelForInference loads a model specifically for making predictions.
 //
 // INFERENCE vs TRAINING:
-// When loading a model for inference (making predictions), we don't need
-// all the training infrastructure. We create a minimal configuration that
-// includes only what's necessary for prediction:
-// - Network architecture must match the saved model
-// - Input/output dimensions must be correct
-// - We don't need training options, plotting settings, etc.
+// When loading a model for inference (making predictions), we don't need all the
+// training infrastructure. We create a minimal configuration that includes only
+// what's necessary for prediction:
+// - Network architecture must match the saved model exactly
+// - Input/output dimensions must be correct for the data format
+// - We don't need training options, plotting settings, or other training-specific config
 //
-// USE CASES:
-// - Loading a model in a production web service
-// - Batch processing of images for classification
-// - Interactive applications where users upload images
-// - A/B testing different model versions
+// COMMON USE CASES:
+// - Loading a model in a production web service for real-time predictions
+// - Batch processing of images for classification in data pipelines
+// - Interactive applications where users upload images for character recognition
+// - A/B testing different model versions to compare performance
 //
 // COMPATIBILITY NOTE:
-// Ensure the loaded model matches your expected character set. A model trained
-// on 62 classes won't work properly for 94-class recognition, and vice versa.
+// Always ensure the loaded model matches your expected character set. A model trained
+// on the original 62 classes (A-Z, a-z, 0-9) won't work properly for 94-class recognition
+// that includes punctuation, and vice versa. The input/output dimensions must match exactly.
 func LoadModelForInference(filename string) (*ImageClassifier, *graymatter.NetworkMetadata, error) {
-	// STEP 1: Load the saved network and its metadata
+	// STEP 1: Load the saved network and its metadata from disk
 	network, metadata, err := graymatter.LoadNetwork(filename)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load network: %w", err)
 	}
 
 	// STEP 2: Create minimal configuration for inference
-	// We hard-code the image dimensions and class count because they're
-	// fundamental properties of our character recognition system.
-	// In a more flexible system, these might be saved with the model.
+	// We hard-code the image dimensions and class count because they're fundamental
+	// properties of our character recognition system. In a more flexible system,
+	// these values might be saved with the model metadata.
 	config := &Config{
-		ImageWidth:  28,  // All images must be 28×28 pixels
+		ImageWidth:  28,  // All input images must be exactly 28×28 pixels
 		ImageHeight: 28,
-		InputSize:   784, // 28 × 28 = 784 pixels
-		OutputSize:  94,  // UPDATED: 26 + 26 + 10 + 32 = 94 character classes
+		InputSize:   784, // 28 × 28 = 784 pixels (flattened to 1D array)
+		OutputSize:  94,  // 26 + 26 + 10 + 32 = 94 total character classes
 	}
 
-	// STEP 3: Create classifier instance with loaded network
+	// STEP 3: Create classifier instance with the loaded network
 	classifier := &ImageClassifier{
 		config:  config,
 		network: network,
 	}
 
 	// Return both the classifier and metadata
-	// Metadata contains useful information like training accuracy,
-	// hyperparameters used, and notes about the model
+	// The metadata contains useful information like training accuracy,
+	// hyperparameters used, and notes about the model's capabilities
 	return classifier, metadata, nil
 }
 
 // EvaluateModel evaluates the model on a test dataset.
 //
 // EVALUATION vs VALIDATION:
+// It's important to understand the difference between these concepts:
 // - Validation: Used during training to tune hyperparameters and detect overfitting
 // - Evaluation: Final assessment on completely unseen test data
 //
-// The test dataset should be kept separate from both training and validation data.
-// It provides an unbiased estimate of how the model will perform in the real world.
+// The test dataset should be kept completely separate from both training and validation data.
+// It provides an unbiased estimate of how the model will perform in the real world on
+// data it has never seen before.
 //
 // EVALUATION METRICS:
-// We calculate accuracy (percentage of correct predictions), but other metrics
-// might be relevant depending on your use case:
-// - Precision: Of all positive predictions, how many were actually correct?
-// - Recall: Of all actual positives, how many did we correctly identify?
+// We calculate overall accuracy (percentage of correct predictions), but other metrics
+// might be relevant depending on your specific use case:
+// - Precision: Of all positive predictions for a class, how many were actually correct?
+// - Recall: Of all actual instances of a class, how many did we correctly identify?
 // - F1-score: Balanced combination of precision and recall
-// - Per-class accuracy: Performance on each individual character
-//
-// ENHANCED FOR 94-CLASS EVALUATION:
-// Now evaluates performance across the full range of character types including
-// punctuation marks, which may have different accuracy characteristics than
-// letters and digits.
+// - Per-class accuracy: Performance on each individual character type
 func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 	// STEP 1: Temporarily switch data directory to load test data
-	// We need to load test data the same way we loaded training data,
-	// but from a different directory. We temporarily change the config.
+	// We need to load test data using the same pipeline as training data,
+	// but from a different directory. We temporarily change the config to point
+	// to the test data location.
 	originalDataDir := ic.config.DataDir
 	ic.config.DataDir = testDataPath
 	
 	// STEP 2: Load test data using existing data loading infrastructure
-	// This ensures test data gets the same preprocessing as training data
+	// This ensures test data gets exactly the same preprocessing as training data,
+	// which is critical for fair evaluation
 	testData, err := ic.loadTrainingData()
 	if err != nil {
 		ic.config.DataDir = originalDataDir // Restore original setting
@@ -156,6 +150,7 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 	ic.config.DataDir = originalDataDir
 
 	// STEP 4: Convert test data to neural network format
+	// Use the same conversion process as training to ensure consistency
 	inputs, outputs, err := ic.prepareDataForTraining(testData)
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare test data: %w", err)
@@ -167,9 +162,9 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 		return 0, fmt.Errorf("failed to create test dataset: %w", err)
 	}
 
-	// STEP 6: Calculate accuracy using the library's method
-	// This runs all test examples through the network and computes
-	// the percentage of correct predictions across all 94 character classes
+	// STEP 6: Calculate accuracy using the library's evaluation method
+	// This runs all test examples through the network and computes the percentage
+	// of correct predictions across all 94 character classes
 	accuracy, err := ic.network.CalculateAccuracy(dataset, 0.5)
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate accuracy: %w", err)
@@ -181,82 +176,88 @@ func (ic *ImageClassifier) EvaluateModel(testDataPath string) (float64, error) {
 // MODEL MANAGEMENT BEST PRACTICES:
 
 // 1. DESCRIPTIVE FILENAMES:
-// Use names that include key information:
+// Use names that include key information for easy identification:
 // - "character_classifier_94class_acc_92.5_lr_0.001.json"
-// - "enhanced_model_with_punctuation_v3.json"
+// - "model_with_punctuation_v3.json"
 // - "production_model_2024_05_25.json"
+// Include accuracy, learning rate, date, or version information in the filename.
 
 // 2. VERSION CONTROL FOR MODELS:
-// Consider using Git LFS or specialized model versioning tools like DVC
-// to track model changes alongside code changes.
+// Consider using Git LFS (Large File Storage) or specialized model versioning
+// tools like DVC (Data Version Control) to track model changes alongside code changes.
+// This helps maintain reproducibility and enables rollbacks if needed.
 
-// 3. MODEL METADATA:
-// Always include comprehensive metadata:
+// 3. COMPREHENSIVE MODEL METADATA:
+// Always include detailed metadata with saved models:
 // - Training date and duration
-// - Dataset characteristics (size, source, preprocessing)
-// - Hyperparameters used
-// - Performance metrics (overall and per-class if available)
-// - Known limitations or issues
-// - Character set supported (62-class vs 94-class)
+// - Dataset characteristics (size, source, preprocessing steps)
+// - All hyperparameters used (learning rate, batch size, epochs, etc.)
+// - Performance metrics (overall accuracy and per-class if available)
+// - Known limitations, issues, or special considerations
+// - Character set supported (94-class)
 
 // 4. TESTING STRATEGY:
-// - Unit tests: Test individual functions work correctly
-// - Integration tests: Test entire pipeline end-to-end
-// - Performance tests: Verify accuracy on known test sets
+// Implement multiple levels of testing for robust model deployment:
+// - Unit tests: Verify individual functions work correctly with expected inputs
+// - Integration tests: Test the entire pipeline end-to-end with sample data
+// - Performance tests: Verify accuracy meets requirements on known test sets
 // - Regression tests: Ensure new changes don't break existing functionality
 // - Character-type-specific tests: Verify punctuation recognition works properly
 
 // 5. DEPLOYMENT CONSIDERATIONS:
-// - Model size (affects loading time and memory usage)
-// - Inference speed (predictions per second)
-// - Resource requirements (CPU, memory, GPU)
-// - Backward compatibility (can old clients use new models?)
+// Plan for production deployment early in the development process:
+// - Model file size (affects loading time and storage requirements)
+// - Inference speed (predictions per second under expected load)
+// - Resource requirements (CPU, memory, potentially GPU)
+// - Backward compatibility (can old client code use new model versions?)
 // - Character set compatibility (62-class vs 94-class models)
 
 // COMMON PITFALLS TO AVOID:
 
 // 1. INCONSISTENT PREPROCESSING:
-// The same preprocessing pipeline MUST be used for training, validation,
-// testing, and production inference. Any difference will cause poor performance.
+// The exact same preprocessing pipeline MUST be used for training, validation,
+// testing, and production inference. Even small differences (like different
+// normalization ranges or image resize algorithms) will cause poor performance
+// even with a perfectly trained model.
 
 // 2. DATA LEAKAGE:
-// Test data must be completely separate from training data. If any test
-// examples were seen during training, evaluation results will be overly optimistic.
+// Test data must be completely separate from training data. If any test examples
+// were seen during training (even indirectly), evaluation results will be
+// overly optimistic and won't reflect real-world performance.
 
 // 3. TEMPORAL ISSUES:
-// If your data has a time component, split chronologically rather than randomly.
-// Don't use future data to predict past events.
+// If your data has a time component (like documents from different time periods),
+// split chronologically rather than randomly. Don't use future data to predict
+// past events, as this creates unrealistic performance expectations.
 
 // 4. CLASS IMBALANCE IN EVALUATION:
-// If your test set has unequal class representation, overall accuracy might
-// be misleading. Consider per-class metrics and balanced test sets.
-// This is especially important with punctuation marks, which may be less
-// common than letters in typical text.
+// If your test set has unequal representation of different character classes,
+// overall accuracy might be misleading. Consider calculating per-class metrics
+// and using balanced test sets. This is especially important with punctuation
+// marks, which may be less common than letters in typical text.
 
 // 5. MODEL VERSION MISMATCH:
-// Ensure compatibility between saved models and inference code. A 62-class
-// model won't work with 94-class prediction code, and vice versa.
+// Ensure complete compatibility between saved models and inference code. A model
+// trained on 62 classes won't work with 94-class prediction code, and vice versa.
+// Always verify that input/output dimensions match expectations.
 
-// ENHANCED CONSIDERATIONS FOR 94-CLASS MODELS:
-
-// 1. PUNCTUATION-SPECIFIC CHALLENGES:
-// - Visual similarity between some punctuation marks (. vs , vs ;)
+// 6. PUNCTUATION-SPECIFIC CHALLENGES:
+// Punctuation marks present unique recognition challenges:
+// - Visual similarity between some marks (period vs comma vs semicolon)
 // - Size variations (punctuation is often smaller than letters)
-// - Font dependencies (punctuation varies more across fonts)
+// - Font dependencies (punctuation varies more dramatically across fonts)
 // - Lower frequency in typical text (may need more training examples)
 
-// 2. PERFORMANCE MONITORING:
+// 7. PERFORMANCE MONITORING:
+// Implement detailed performance monitoring for production systems:
 // - Monitor per-character-type accuracy (letters vs digits vs punctuation)
-// - Identify which punctuation marks are most problematic
+// - Identify which specific punctuation marks are most problematic
+// - Track performance over different text sources and fonts
 // - Consider separate metrics for different character categories
 
-// 3. DATASET CONSIDERATIONS:
+// 8. DATASET CONSIDERATIONS:
+// When building datasets for 94-class recognition:
 // - Ensure balanced representation across all 94 classes
 // - Collect extra examples for visually similar characters
 // - Include variety in punctuation mark sizes and styles
-
-// This enhanced model utilities module provides the foundation for a complete
-// machine learning lifecycle with support for comprehensive character recognition
-// including punctuation marks. The utilities handle both 62-class legacy models
-// and new 94-class enhanced models, providing clear upgrade paths and
-// compatibility management.
+// - Test with multiple fonts to ensure generalization
