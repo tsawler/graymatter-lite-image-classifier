@@ -1,4 +1,5 @@
 .Ds_Store
 *.json
+!fully-trainined-model/*
 data
 prediction_image.png

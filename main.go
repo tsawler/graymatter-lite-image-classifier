@@ -5,8 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
+
+// Directory to save trained models as JSON
+const modelSaveDir = "./saved_models"
+
+func init() {
+	// Create output directory for saved models
+	_ = os.MkdirAll(modelSaveDir, 0755)
+}
 
 // main is the entry point for our image classification neural network program.
 //
@@ -63,7 +72,7 @@ func main() {
 	var learningRate float64
 
 	// Define command line flags with helpful descriptions
-	flag.StringVar(&fileToPredict, "predict", "a.png", "Image file to make prediction on (default 'a.png')")
+	flag.StringVar(&fileToPredict, "predict", "", "Image file to make prediction on (default 'a.png')")
 	flag.StringVar(&fileToLoad, "load", "", "Path to existing trained model file to load")
 	flag.IntVar(&batchSize, "batchsize", 64, "Batch size for training (default 64)")
 	flag.IntVar(&iterations, "iterations", 30, "Number of training iterations/epochs (default 30)")
@@ -73,7 +82,7 @@ func main() {
 	// Parse the command line arguments
 	flag.Parse()
 
-	// PROGRAM INITIALIZATION 
+	// PROGRAM INITIALIZATION
 	fmt.Println("Starting Image Classification System...")
 
 	// Display current sampling configuration with helpful context
@@ -102,31 +111,20 @@ func main() {
 	config.SamplesPerClass = samplesPerClass
 
 	var classifier *ImageClassifier
-	var err error
 
 	// Define the expected path for the best/final trained model
-	bestModelPath := "./image_classifier_final.json"
+	bestModelPath := filepath.Join(modelSaveDir, "image_classifier_final.json")
 
-	// INTELLIGENT MODEL LOADING DECISION LOGIC
-	// Check if user specified a model to load OR if default model exists
-	modelToLoad := fileToLoad
-	if modelToLoad == "" {
-		// No specific model specified, check for default model
-		if _, err := os.Stat(bestModelPath); err == nil {
-			modelToLoad = bestModelPath
-		}
-	}
-
-	if modelToLoad != "" && fileExists(modelToLoad) {
+	if fileToLoad != "" && fileExists(fileToLoad) {
 		// PRE-TRAINED MODEL FOUND: Load existing model and skip training
 		fmt.Printf("\n🔄 LOADING PRE-TRAINED MODEL\n")
 		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-		fmt.Printf("📁 Found existing model: %s\n", modelToLoad)
+		fmt.Printf("📁 Found existing model: %s\n", fileToLoad)
 		fmt.Printf("⚡ Loading pre-trained model (skipping training entirely)\n")
 		fmt.Printf("ℹ️  Note: Pre-trained model may have been trained with different settings\n")
 
 		// Load the model using our utility function for inference
-		c, metadata, err := LoadModelForInference(modelToLoad)
+		c, metadata, err := LoadModelForInference(fileToLoad)
 		if err != nil {
 			log.Fatalf("❌ Failed to load existing model: %v", err)
 		}
@@ -147,10 +145,8 @@ func main() {
 		// NO PRE-TRAINED MODEL FOUND: Train a new model from scratch
 		fmt.Printf("\n🚀 TRAINING NEW MODEL\n")
 		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-		if modelToLoad != "" {
-			fmt.Printf("⚠️  Specified model not found: %s\n", modelToLoad)
-		} else {
-			fmt.Printf("📂 No existing model found at: %s\n", bestModelPath)
+		if fileToLoad != "" {
+			fmt.Printf("⚠️  Specified model not found: %s\n", fileToLoad)
 		}
 
 		// Display training configuration information
@@ -228,35 +224,37 @@ func main() {
 	fmt.Printf("   • Punctuation: 32 symbols (!, @, #, $, %%, etc.)\n")
 	fmt.Printf("   • Total: 94 different character classes\n")
 
-	// Perform a test prediction to validate the model works
-	fmt.Printf("\n🔍 Making test prediction on '%s'...\n", fileToPredict)
+	if fileToPredict != "" {
+		// Perform a test prediction to validate the model works
+		fmt.Printf("\n🔍 Making test prediction on '%s'...\n", fileToPredict)
 
-	prediction, confidence, err := classifier.Predict(fileToPredict)
-	if err != nil {
-		log.Printf("❌ Failed to predict image: %v\n", err)
-		fmt.Printf("💡 Troubleshooting tips:\n")
-		fmt.Printf("   • Ensure '%s' exists in the current directory\n", fileToPredict)
-		fmt.Printf("   • Try a different image file with --predict flag\n")
-		fmt.Printf("   • Supported formats: PNG, JPEG\n")
-		fmt.Printf("   • Test with images containing letters, digits, or punctuation!\n")
-	} else {
-		// Successful prediction - display comprehensive results
-		fmt.Printf("✅ Prediction successful!\n\n")
-		fmt.Printf("📊 Prediction Results:\n")
-		fmt.Printf("   • Predicted character: '%s'\n", prediction)
-		fmt.Printf("   • Confidence level: %.1f%%\n", confidence*100)
+		prediction, confidence, err := classifier.Predict(fileToPredict)
+		if err != nil {
+			log.Printf("❌ Failed to predict image: %v\n", err)
+			fmt.Printf("💡 Troubleshooting tips:\n")
+			fmt.Printf("   • Ensure '%s' exists in the current directory\n", fileToPredict)
+			fmt.Printf("   • Try a different image file with --predict flag\n")
+			fmt.Printf("   • Supported formats: PNG, JPEG\n")
+			fmt.Printf("   • Test with images containing letters, digits, or punctuation!\n")
+		} else {
+			// Successful prediction - display comprehensive results
+			fmt.Printf("✅ Prediction successful!\n\n")
+			fmt.Printf("📊 Prediction Results:\n")
+			fmt.Printf("   • Predicted character: '%s'\n", prediction)
+			fmt.Printf("   • Confidence level: %.1f%%\n", confidence*100)
 
-		// Provide human-friendly interpretation of confidence level
-		confidenceAssessment := getConfidenceAssessment(confidence)
-		fmt.Printf("   • Assessment: %s\n", confidenceAssessment)
+			// Provide human-friendly interpretation of confidence level
+			confidenceAssessment := getConfidenceAssessment(confidence)
+			fmt.Printf("   • Assessment: %s\n", confidenceAssessment)
 
-		// Provide additional context about the character type
-		charType := getCharacterType(prediction)
-		fmt.Printf("   • Character type: %s\n", charType)
+			// Provide additional context about the character type
+			charType := getCharacterType(prediction)
+			fmt.Printf("   • Character type: %s\n", charType)
 
-		// Show confidence-based recommendations
-		if confidence < 0.7 {
-			fmt.Printf("💡 Recommendation: Consider using a clearer image for better accuracy\n")
+			// Show confidence-based recommendations
+			if confidence < 0.7 {
+				fmt.Printf("💡 Recommendation: Consider using a clearer image for better accuracy\n")
+			}
 		}
 	}
 

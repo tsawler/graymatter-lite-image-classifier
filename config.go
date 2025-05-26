@@ -1,6 +1,10 @@
 package main
 
-import "github.com/tsawler/graymatter-lite"
+import (
+	"path/filepath"
+
+	"github.com/tsawler/graymatter-lite"
+)
 
 // Config holds all configuration parameters for our image classification neural network.
 //
@@ -259,11 +263,11 @@ func NewDefaultConfig() *Config {
 		// DATA SAMPLING CONFIGURATION
 		// Default to using all available data (traditional approach)
 		// Users can override this for faster development workflows
-		SamplesPerClass: 0, // 0 = use all available images per class
+	SamplesPerClass: 0, // 0 = use all available images per class
 
 		// FILE SYSTEM PATHS
 		DataDir:   "data",             // Look for training images in ./data/ subdirectory
-		ModelPath: "image_classifier", // Save trained models with this base name
+		ModelPath: filepath.Join(modelSaveDir, "image_classifier"), // Save trained models with this base name
 
 		// EXTERNAL SERVICES
 		PlottingURL: "http://localhost:8080", // Plotting service assumed to run locally
