@@ -31,4 +31,5 @@ tasks:
 
   load-and-predict:
     cmds:
-      - go run . -load=fully-trained-model/image_classifier_final.json -predict=./images-to-predict/w.png
+      # - go run . -load=fully-trained-model/image_classifier_final.json -predict=./images-to-predict/w.png
+      - go run . -load=saved_models/image_classifier_final.json -predict=./images-to-predict/w.png
