@@ -83,6 +83,14 @@ pip install -r requirements.txt
 python app.py
 ```
 
+Or, run it in Docker:
+
+```bash
+git clone https://github.com/tsawler/graymatter-sidecar
+cd graymatter-sidecar
+docker-compose up --build -d
+```
+
 The sidecar runs on `http://localhost:8080` and provides comprehensive training plots.
 
 ### 4. Prepare Your Data
