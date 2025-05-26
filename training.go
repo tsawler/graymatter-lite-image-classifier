@@ -165,6 +165,9 @@ func (ic *ImageClassifier) createNetwork() error {
 		Seed: 42, // Any fixed number works; 42 is a popular choice
 	}
 
+	// ADD THIS DEBUG OUTPUT
+    fmt.Printf("Network config: %+v\n", config)
+
 	// Create the network using the graymatter library
 	network, err := graymatter.NewNetwork(config)
 	if err != nil {
@@ -173,6 +176,15 @@ func (ic *ImageClassifier) createNetwork() error {
 
 	// Store the network in our classifier for later use
 	ic.network = network
+
+	// ADD THIS TOO
+    fmt.Printf("Network created with layers: %v\n", network.LayerSizes)
+    fmt.Printf("Hidden activation: %d, Output activation: %d, Cost function: %d\n", 
+        network.HiddenActivationFunctionType, 
+        network.OutputActivationFunctionType, 
+        network.CostFunctionType)
+
+		
 	return nil
 }
 
@@ -207,7 +219,7 @@ func (ic *ImageClassifier) generateAnalysisPlots(trainData, validData *graymatte
 	fmt.Println("Generating network architecture diagram...")
 	archReq := graymatter.CreateNetworkArchitectureVisualization(
 		ic.network,
-		"Image Classification Network Architecture",
+		"Alphanumeric Character Recognition Network Architecture",
 		"network_architecture.png",
 	)
 
@@ -237,7 +249,7 @@ func (ic *ImageClassifier) generateAnalysisPlots(trainData, validData *graymatte
 	if err != nil {
 		fmt.Printf("Warning: Failed to generate weight distribution plot: %v\n", err)
 	} else if weightResp.Success {
-		fmt.Printf("Weight distribution plot saved: %s\n", weightResp.FilePath)
+		fmt.Printf("Weight distribution plo: %s\n", weightResp.FilePath)
 	}
 
 	// STEP 4: Generate confusion matrix for validation set
@@ -289,14 +301,14 @@ func (ic *ImageClassifier) generateConfusionMatrix(plotClient *graymatter.Plotti
 	}
 
 	// STEP 3: Limit matrix size for readability
-	// With 62 classes, a full confusion matrix would be huge and hard to read.
+	// With 62 classes, a full confusion matrix would be quite large.
 	// For visualization purposes, we show a subset that's easier to interpret.
-	if len(classLabels) > 10 {
-		fmt.Println("Note: Limiting confusion matrix to first 10 classes for readability")
-		truncatedMatrix := make([][]int, 10)
-		truncatedLabels := make([]string, 10)
-		for i := 0; i < 10; i++ {
-			truncatedMatrix[i] = matrix[i][:10]
+	if len(classLabels) > 15 {
+		fmt.Println("Note: Limiting confusion matrix to first 15 classes for readability")
+		truncatedMatrix := make([][]int, 15)
+		truncatedLabels := make([]string, 15)
+		for i := 0; i < 15; i++ {
+			truncatedMatrix[i] = matrix[i][:15]
 			truncatedLabels[i] = classLabels[i]
 		}
 		matrix = truncatedMatrix
@@ -390,7 +402,23 @@ func (ic *ImageClassifier) getDatasetSize(dataset *graymatter.DataSet) int {
 // Problem: Some classes have much more training data than others
 // Solutions: Balanced sampling, weighted loss functions, data augmentation
 
-// This training pipeline provides a solid foundation for character recognition
-// and can be adapted for other image classification tasks. The key is to
-// monitor training progress, validate generalization, and iterate on the
-// approach based on the results.
+// ALPHANUMERIC-SPECIFIC CONSIDERATIONS:
+
+// 1. SIMILAR CHARACTERS:
+// Some characters look very similar and may be confused:
+// - 'O' (letter) vs '0' (zero)
+// - 'l' (lowercase L) vs '1' (one) vs 'I' (uppercase i)
+// - 'S' vs '5' in certain fonts
+
+// 2. CASE SENSITIVITY:
+// The model learns both uppercase and lowercase versions of letters.
+// Make sure training data includes good examples of both cases.
+
+// 3. FONT VARIATIONS:
+// Different fonts can make characters look quite different.
+// Include variety in training data for better generalization.
+
+// This training pipeline provides a solid foundation for alphanumeric character
+// recognition and demonstrates best practices for neural network training.
+// The 62-class architecture (A-Z, a-z, 0-9) is well-suited for most text
+// recognition applications.
