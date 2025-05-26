@@ -58,8 +58,8 @@ Input Layer (784 neurons) → Hidden Layer (128 neurons) → Hidden Layer (128 n
 ### 1. Clone and Setup
 
 ```bash
-git clone <your-repository-url>
-cd character-recognition
+git github.com/tsawler/graymatter-lite-image-classifier
+cd graymatter-lite-image-classifier
 go mod init character-recognition
 go mod tidy
 ```
