@@ -4,24 +4,30 @@ version: '3'
 
 tasks:
 
+  train-10:
+    # works
+    cmds:
+      - go run . -samples 10 -batchsize 64 -lr 0.0015 -iterations 150
+
   train-500:
     # works
     cmds:
       - go run . -samples 500 -batchsize 64 -iterations 200 -lr 0.001 
 
   train-1000:
-    # trying batch size 64, learning rate 0.002
+    # works
     cmds:
-      - go run . -samples 1000 -batchsize 32 -lr 0.001 -hidden-layers 64 
+      - go run . -samples 1000 -batchsize 64 -iterations 200 -lr 0.002
     
 
   train-2000:
+    # trying batchsize 64 learning rate 0.0015 iteratins 150 
     cmds:
-      - go run . -samples 2000 -batchsize 32 -lr 0.005 -hidden-layers 128 -iterations 600
+      - go run . -samples 2000 -batchsize 64 -lr 0.0015 -iterations 150
 
   train-5000:
     cmds:
-      - go run . -samples 5000 -batchsize 64 -lr 0.003 -hidden-layers 128 -iterations 600
+      - go run . -samples 5000 -batchsize 128 -lr 0.001 -iterations 100
 
   train-all:
     cmds:
@@ -33,4 +39,4 @@ tasks:
     # Iterations: 30
     # LearningRate: 0.001 (try 0.01)
     # BatchSize: 32
-      - go run . -batchsize=32 -iterations=30 -lr=0.01
+      - go run . -batchsize=256 -iterations=50 -lr=0.0008

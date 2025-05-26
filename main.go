@@ -56,7 +56,7 @@ func main() {
 
 	fmt.Println("Starting Enhanced Image Classification System with Data Sampling & Intelligent Caching...")
 	fmt.Println("Supporting 94 character classes: A-Z, a-z, 0-9, and punctuation marks")
-	fmt.Println("Features: Smart data caching + Model persistence + Flexible data sampling")
+	fmt.Println("Features: Model persistence + Flexible data sampling")
 	
 	// Display sampling configuration
 	if samplesPerClass > 0 {
