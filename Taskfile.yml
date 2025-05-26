@@ -31,4 +31,4 @@ tasks:
 
   load-and-predict:
     cmds:
-      - go run . -load=image_classifier_final.json -predict=a.png
+      - go run . -load=image_classifier_final.json -predict=./images-to-predict/b.png
