@@ -1,4 +1,4 @@
-# Enhanced Character Recognition Neural Network
+# Character Recognition Neural Network
 
 A comprehensive Go-based neural network system for recognizing alphanumeric characters and punctuation marks using deep learning. This system can learn to identify 94 different character classes including uppercase letters (A-Z), lowercase letters (a-z), digits (0-9), and common punctuation marks.
 
