@@ -5,23 +5,19 @@ version: '3'
 tasks:
 
   train-10:
-    # works
     cmds:
       - go run . -samples 10 -batchsize 64 -lr 0.0015 -iterations 150
 
   train-500:
-    # works
     cmds:
       - go run . -samples 500 -batchsize 64 -iterations 200 -lr 0.001 
 
   train-1000:
-    # works
     cmds:
       - go run . -samples 1000 -batchsize 64 -iterations 200 -lr 0.002
     
 
   train-2000:
-    # works
     cmds:
       - go run . -samples 2000 -batchsize 64 -lr 0.0015 -iterations 60
 
