@@ -49,9 +49,9 @@ Input Layer (784 neurons) → Hidden Layer (128 neurons) → Hidden Layer (128 n
 
 ## 📋 Prerequisites
 
-- **Go 1.19 or later**
+- **Go 1.23 or later**
 - **Git** (for cloning dependencies)
-- **Python 3.7+** with matplotlib (for the plotting sidecar)
+- **Python 3.13+** with matplotlib (for the plotting sidecar)
 
 ## 🚀 Quick Start
 
