@@ -1,5 +1,8 @@
 .Ds_Store
+# Ignore all .json files
 *.json
-!fully-trainined-model/*
+
+# But don't ignore this specific file
+!fully-trained-model/image_classifier_final.json
 data
 prediction_image.png
